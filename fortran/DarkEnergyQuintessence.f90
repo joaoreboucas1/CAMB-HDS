@@ -70,8 +70,8 @@ module Quintessence
     contains
         procedure :: Vofphi => THybridQuintessence_VofPhi
         procedure :: Init => THybridQuintessence_Init
-        procedure :: ReadParams =>  THybridQuintessence_ReadParams
-        procedure :: EvolveBackground => THybridQuintessence_PerturbationEvolve
+        procedure :: ReadParams => THybridQuintessence_ReadParams
+        procedure :: EvolveBackground => THybridQuintessence_EvolveBackground
         procedure :: PerturbationEvolve => THybridQuintessence_PerturbationEvolve
         procedure, nopass :: PythonClass => THybridQuintessence_PythonClass
         procedure, nopass :: SelfPointer => THybridQuintessence_SelfPointer
@@ -326,7 +326,7 @@ contains
                     if (iflag/=0) print *, 'BRENTQ FAILED m'
                     this%m = exp(xzero)
                     print *, 'match to m, f =', this%m, this%f, fzero
-                    call this%V0alc_zc_fde(fzero, xzero)
+                    call this%calc_zc_fde(fzero, xzero)
                     print *, 'matched outputs', fzero, xzero
                 end do
                 call Timer%WriteTime('Timing for fitting')
@@ -352,7 +352,7 @@ contains
                 this%f = exp(log_params(1))
                 this%m = exp(log_params(2))
                 if (this%DebugLevel>0) then
-                    call this%V0alc_zc_fde(fzero, xzero)
+                    call this%calc_zc_fde(fzero, xzero)
                     write(*,*) 'matched outputs Bobyqa zc, fde = ', fzero, xzero
                 end if
             else
@@ -444,7 +444,7 @@ contains
             sampled_a(ix)=exp(aend)
             a2 = sampled_a(ix)**2
             call dverk(this,NumEqs,EvolveBackgroundLog,afrom,y,aend,this%integrate_tol,ind,c,NumEqs,w)
-            if (.not. this%V0heck_error(exp(afrom), exp(aend))) return
+            if (.not. this%check_error(exp(afrom), exp(aend))) return
             call EvolveBackgroundLog(this,NumEqs,aend,y,w(:,1))
             phi_a(ix)=y(1)
             phidot_a(ix)=y(2)/a2
@@ -495,7 +495,7 @@ contains
             a2 =aend**2
             this%sampled_a(ix)=aend
             call dverk(this,NumEqs,EvolveBackground,afrom,y,aend,this%integrate_tol,ind,c,NumEqs,w)
-            if (.not. this%V0heck_error(afrom, aend)) return
+            if (.not. this%check_error(afrom, aend)) return
             call EvolveBackground(this,NumEqs,aend,y,w(:,1))
             this%phi_a(ix)=y(1)
             this%phidot_a(ix)=y(2)/a2
@@ -585,7 +585,7 @@ contains
         real(dl) match_zc, zc, fde_zc
 
         this%m = exp(logm)
-        call this%V0alc_zc_fde(zc, fde_zc)
+        call this%calc_zc_fde(zc, fde_zc)
         match_zc = zc - this%zc
 
         end function match_zc
@@ -596,7 +596,7 @@ contains
         real(dl) match_fde, zc, fde_zc
 
         this%f = exp(logf)
-        call this%V0alc_zc_fde(zc, fde_zc)
+        call this%calc_zc_fde(zc, fde_zc)
         match_fde = fde_zc - this%fde_zc
 
     end function match_fde
@@ -608,7 +608,7 @@ contains
 
         this%f = exp(x(1))
         this%m = exp(x(2))
-        call this%V0alc_zc_fde(zc, fde_zc)
+        call this%calc_zc_fde(zc, fde_zc)
 
         match_fde_zc = (log(this%fde_zc)-log(fde_zc))**2 + (log(zc)-log(this%zc))**2
         if (this%DebugLevel>1) then
@@ -655,7 +655,7 @@ contains
             sampled_a(ix)=exp(aend)
             a2 = sampled_a(ix)**2
             call dverk(this,NumEqs,EvolveBackgroundLog,afrom,y,aend,this%integrate_tol,ind,c,NumEqs,w)
-            if (.not. this%V0heck_error(exp(afrom), exp(aend))) return
+            if (.not. this%check_error(exp(afrom), exp(aend))) return
             call EvolveBackgroundLog(this,NumEqs,aend,y,w(:,1))
             fde(ix) = 1/((this%state%grho_no_de(sampled_a(ix)) +  this%frac_lambda0*this%State%grhov*a2**2) &
                 /((0.5d0*y(2)**2/a2 + a2**2*this%Vofphi(y(1),0))) + 1)
@@ -770,14 +770,13 @@ contains
     ! Hybrid Dark Sector model from https://arxiv.org/abs/2211.13653
     ! -----------------------------------------------------------------------
     
-    function THybridQuintessence_VofPhi(this, phi, deriv) result(VofPhi)
+    real(dl) function THybridQuintessence_VofPhi(this, phi, deriv) result(Vofphi)
         !The input variable phi is sqrt(8*Pi*G)*psi
         !Returns (8*Pi*G)^(1-deriv/2)*d^{deriv}V(psi)/d^{deriv}psi evaluated at psi
         !return result is in 1/Mpc^2 units [so times (Mpc/c)^2 to get units in 1/Mpc^2]
-        class(TEarlyQuintessence) :: this
-        real(dl), intent(in) :: phi
-        real, intent(out) :: Vofphi
-        integer, intent(in) :: deriv
+        class(THybridQuintessence) :: this
+        real(dl) :: phi
+        integer :: deriv
         if (deriv == 0) then
             Vofphi = this%V0
         else
@@ -789,7 +788,7 @@ contains
         ! Evolve the background equation in terms of a.
         ! Variables are phi=y(1), phi' = y(2)
         ! Assume otherwise standard background components
-        class(TQuintessence) :: this
+        class(THybridQuintessence) :: this
         integer num
         real(dl) y(num),yprime(num)
         real(dl) a, a2, tot
@@ -804,7 +803,7 @@ contains
 
         adot = sqrt(tot/3.0d0) ! a*H_curly
         yprime(1) = phidot/adot ! dphi/da
-        yprime(2)= -2*phidot/a - a*this%rho_dm_i*(phi/this%phi_i)*(a_i/a)**3/(phi*adot/a) ! dphi'/da
+        yprime(2)= -2*phidot/a - a*this%rho_dm_i*(phi/this%phi_i)*(this%a_i/a)**3/(phi*adot/a) ! dphi'/da
     end subroutine THybridQuintessence_EvolveBackground
 
     subroutine THybridQuintessence_Init(this, State)
@@ -818,8 +817,8 @@ contains
         real(dl), parameter :: dloga = (log(a_switch) - log(a_start))/nsteps_log, da = (1._dl - a_switch)/nsteps_linear
         real(dl)            :: y(NumEqs), y_prime(NumEqs)
         real(dl)            :: omega_de_target, om, om1, om2
-        real(dl)            :: V0_1, V0_2, new_V0, a, loga, atol, initial_phi, initial_X, a_line, b_line, error
-        real(dl)            :: phi, X
+        real(dl)            :: V0_1, V0_2, new_V0, a, loga, atol, initial_phi, initial_phidot, a_line, b_line, error
+        real(dl)            :: phi, phidot
         integer             :: i
         Type(TTimer)        :: Timer
         real(dl)            :: grho_no_de, grho_de, fde
@@ -862,10 +861,9 @@ contains
         atol = 1d-8
         initial_phidot = 0d0
         this%V0 = V0_1
-        initial_phi = this%get_initial_phi(a_start)
-        om1 = this%GetOmegaFromInitial(a_start, initial_phi, initial_X, atol)
+        om1 = GetOmegaFromInitial(this, a_start, this%phi_i, initial_phidot, atol)
         this%V0 = V0_2
-        om2 = this%GetOmegaFromInitial(a_start, initial_phi, initial_X, atol)
+        om2 = GetOmegaFromInitial(this, a_start, this%phi_i, initial_phidot, atol)
         print*, "Target Omega_de:", omega_de_target
         print*, "V0 = ", V0_1, "=> omega_de = ", om1
         print*, "V0 = ", V0_2, "=> omega_de = ", om2
@@ -878,7 +876,7 @@ contains
 		    b_line = om2 - a_line*V0_2
             new_V0 = (omega_de_target - b_line)/a_line
             this%V0 = new_V0
-            om = this%GetOmegaFromInitial(a_start, initial_phi, initial_X, atol)
+            om = GetOmegaFromInitial(this, a_start, this%phi_i, initial_phidot, atol)
             error = (om - omega_de_target)/omega_de_target
             print*, "V0 = ", new_V0, "=> omega_de = ", om, "(error = ", error, ")"
             
@@ -897,7 +895,7 @@ contains
         end do
 
         y(1) = initial_phi
-        y(2) = initial_X
+        y(2) = initial_phidot
         
         do i = 1, nsteps_log
             loga = log(a_start) + i*dloga
@@ -953,6 +951,7 @@ contains
         real(dl), intent(inout) :: ayprime(:)
         real(dl), intent(in) :: a, adotoa, w, k, z, y(:)
         integer, intent(in) :: w_ix
+        integer, parameter :: cdm_ix = 2
         real(dl) clxq, vq, phi, phidot, deltaQ, rho_dm
 
         call this%ValsAta(a,phi,phidot) !wasting time calling this again..
@@ -983,6 +982,15 @@ contains
         P => PType
 
     end subroutine THybridQuintessence_SelfPointer
+
+    subroutine THybridQuintessence_ReadParams(this, Ini)
+        use IniObjects
+        class(THybridQuintessence) :: this
+        class(TIniFile), intent(in) :: Ini
+
+        call this%TDarkEnergyModel%ReadParams(Ini)
+
+    end subroutine THybridQuintessence_ReadParams
 
 
 

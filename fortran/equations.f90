@@ -31,6 +31,7 @@
     use results
     use MassiveNu
     use DarkEnergyInterface
+    use Quintessence
     use Transfer
     implicit none
     public
