@@ -32,6 +32,7 @@
     use config
     use model
     use splines
+    use DarkEnergyInterface
     implicit none
     public
 

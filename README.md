@@ -1,0 +1,2 @@
+# CAMB-HDS
+CAMB modification that implements the Hybrid Dark Sector model from the article [Scalar field dark matter and dark energy: a hybrid model for the dark sector](https://arxiv.org/abs/2211.13653).

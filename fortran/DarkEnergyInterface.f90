@@ -8,6 +8,7 @@
 
     type, extends(TCambComponent) :: TDarkEnergyModel
         logical :: is_cosmological_constant = .true.
+        logical :: is_hybrid_sector = .false.
         integer :: num_perturb_equations = 0
     contains
     procedure :: Init
