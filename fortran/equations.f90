@@ -2157,6 +2157,8 @@
 
     real(dl) dgq,grhob_t,grhor_t,grhoc_t,grhog_t,grhov_t,grhonu_t,sigma,polter
     real(dl) w_dark_energy_t !equation of state of dark energy
+
+    real(dl) phi_de, phi_prime_de
     real(dl) gpres_noDE !Pressure with matter and radiation, no dark energy
     real(dl) qgdot,qrdot,pigdot,pirdot,vbdot,dgrho,adotoa
     real(dl) a,a2,z,clxc,clxb,vb,clxg,qg,pig,clxr,qr,pir
@@ -2201,7 +2203,14 @@
     !  Compute expansion rate from: grho 8*pi*rho*a**2
 
     grhob_t=State%grhob/a
-    grhoc_t=State%grhoc/a
+
+    ! JVR MOD: changing CDM energy density
+    if (State%CP%DarkEnergy%is_hybrid_sector) then
+        call State%CP%DarkEnergy%ValsAta(a, phi_de, phi_prime_de)
+        grhoc_t=State%CP%DarkEnergy%grhoc_i * (phi_de/State%CP%DarkEnergy%phi_i) * (State%CP%DarkEnergy%a_i/a)**3 * a2
+    else
+        grhoc_t=State%grhoc/a
+    end if
     grhor_t=State%grhornomass/a2
     grhog_t=State%grhog/a2
 

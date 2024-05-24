@@ -1217,10 +1217,19 @@
     !  Return 8*pi*G*rho_no_de*a**4 where rho_no_de includes everything except dark energy.
     class(CAMBdata) :: this
     real(dl), intent(in) :: a
-    real(dl) grhoa2, rhonu
+    real(dl) grhoa2, rhonu, phi, phi_prime, grhoc_t
     integer nu_i
 
-    grhoa2 = this%grhok * a**2 + (this%grhoc + this%grhob) * a + this%grhog + this%grhornomass
+    ! JVR MOD: changing CDM density
+    if (this%CP%DarkEnergy%is_hybrid_sector) then
+        ! Might set a boolean flag for this
+        call this%CP%DarkEnergy%ValsAta(a, phi, phi_prime)
+        grhoc_t = grhoc_t * this%CP%DarkEnergy%grhoc_i * phi/this%CP%DarkEnergy%phi_i * (this%CP%DarkEnergy%a_i/a)**3 * a**4
+    else
+        grhoc_t = this%grhoc * a
+    end if
+    
+    grhoa2 = this%grhok * a**2 + this%grhob * a + grhoc_t + this%grhog + this%grhornomass
 
     if (this%CP%Num_Nu_massive /= 0) then
         !Get massive neutrino density relative to massless

@@ -9,6 +9,8 @@
     type, extends(TCambComponent) :: TDarkEnergyModel
         logical :: is_cosmological_constant = .true.
         logical :: is_hybrid_sector = .false.
+        real(dl) :: grhoc_i
+        real(dl) :: phi_i, a_i
         integer :: num_perturb_equations = 0
     contains
     procedure :: Init
@@ -17,6 +19,7 @@
     procedure :: diff_rhopi_Add_Term
     procedure :: PerturbationInitial
     procedure :: PerturbationEvolve
+    procedure :: ValsAta
     procedure :: PrintFeedback
     ! do not have to implement w_de or grho_de if BackgroundDensityAndPressure is inherited directly
     procedure :: w_de
@@ -45,6 +48,15 @@
 
     public TDarkEnergyModel, TDarkEnergyEqnOfState
     contains
+
+    subroutine ValsAta(this,a,aphi,aphidot)
+        class(TDarkEnergyModel) :: this
+        !Do interpolation for background phi and phidot at a (precomputed in Init)
+        real(dl) a, aphi, aphidot
+        aphi = 0
+        aphidot = 0
+        stop "Must override ValsAta"
+    end subroutine ValsAta
 
     function w_de(this, a)
     class(TDarkEnergyModel) :: this

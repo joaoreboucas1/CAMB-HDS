@@ -63,9 +63,6 @@ module Quintessence
     end type TEarlyQuintessence
 
     type, extends(TQuintessence) :: THybridQuintessence
-        real(dl) :: phi_i
-        real(dl) :: rho_dm_i
-        real(dl) :: a_i
         real(dl) :: V0
     contains
         procedure :: Vofphi => THybridQuintessence_VofPhi
@@ -729,10 +726,11 @@ contains
 
     end subroutine TEarlyQuintessence_SelfPointer
 
-    real(dl) function GetOmegaFromInitial(this, astart, phi, phidot, atol)
+    subroutine GetOmegaFromInitial(this, astart, phi, phidot, atol, omega_de_0, omega_cdm_0, phi_0)
         ! Get omega_de today given particular conditions phi and X at a = astart
         class(THybridQuintessence) :: this
         real(dl), intent(in) :: astart, phi, phidot, atol
+        real(dl), intent(out) :: omega_de_0, omega_cdm_0, phi_0
         integer, parameter ::  NumEqs = 2
         real(dl) :: c(24), w(NumEqs, 9), y(NumEqs), a_switch, y_prime(2)
         integer :: ind, i
@@ -763,8 +761,10 @@ contains
             ! print*, "a =", a, "phi =", y(1), "X =", y(2), "dphi/da =", y_prime(1), "dX/da =", y_prime(2)
         end do
 
-        GetOmegaFromInitial = this%Vofphi(y(1), 0)*y(2)*(-1._dl + 3*y(2))/this%State%grhocrit
-    end function GetOmegaFromInitial
+        omega_de_0 = (0.5d0*y(2)**2 + this%Vofphi(y(1),0))/this%State%grhocrit
+        phi_0 = y(1)
+        omega_cdm_0 = this%grhoc_i * (phi_0/this%phi_i) * (this%a_i)**3 / this%State%grhocrit
+    end subroutine GetOmegaFromInitial
 
     ! -----------------------------------------------------------------------
     ! Hybrid Dark Sector model from https://arxiv.org/abs/2211.13653
@@ -803,7 +803,7 @@ contains
 
         adot = sqrt(tot/3.0d0) ! a*H_curly
         yprime(1) = phidot/adot ! dphi/da
-        yprime(2)= -2*phidot/a - a*this%rho_dm_i*(phi/this%phi_i)*(this%a_i/a)**3/(phi*adot/a) ! dphi'/da
+        yprime(2)= -2*phidot/a - a*this%grhoc_i*(phi/this%phi_i)*(this%a_i/a)**3/(phi*adot/a) ! dphi'/da
     end subroutine THybridQuintessence_EvolveBackground
 
     subroutine THybridQuintessence_Init(this, State)
@@ -816,8 +816,8 @@ contains
         real(dl), parameter :: a_start = 1e-5, a_switch = 1e-3
         real(dl), parameter :: dloga = (log(a_switch) - log(a_start))/nsteps_log, da = (1._dl - a_switch)/nsteps_linear
         real(dl)            :: y(NumEqs), y_prime(NumEqs)
-        real(dl)            :: omega_de_target, om, om1, om2
-        real(dl)            :: V0_1, V0_2, new_V0, a, loga, atol, initial_phi, initial_phidot, a_line, b_line, error
+        real(dl)            :: omega_de_target, omega_cdm_target, omde, omcdm, omde1, omde2, omcdm1, omcdm2, phi_0, phi_0_1, phi_0_2
+        real(dl)            :: V0_1, V0_2, new_V0, a, loga, atol, initial_phi, initial_phidot, a_line, b_line, error_de, error_cdm
         real(dl)            :: phi, phidot
         integer             :: i
         Type(TTimer)        :: Timer
@@ -831,6 +831,7 @@ contains
         select type(State)
         class is (CAMBdata)
             omega_de_target = State%Omega_de
+            omega_cdm_target = State%grhoc/State%grhocrit
         end select
 
         if (allocated(this%phi_a)) then
@@ -852,44 +853,49 @@ contains
             this%sampled_a(nsteps)   &
         )
         
-        ! Binary search for C
+        ! Binary search for V0
         V0_1 = this%State%grhov * 0.5_dl
         V0_2 = this%State%grhov * 1.3_dl
-        print*, "Shooting for C with tentative values: ", V0_1, V0_2
+        print*, "Shooting for V0 with tentative values: ", V0_1, V0_2, "using phi_i = ", this%phi_i
         
-        ! See if current C is giving correct omega_de now
+        this%grhoc_i = this%State%grhoc * this%a_i**(-3)
+
+        ! See if current V0 is giving correct omega_de now
         atol = 1d-8
         initial_phidot = 0d0
         this%V0 = V0_1
-        om1 = GetOmegaFromInitial(this, a_start, this%phi_i, initial_phidot, atol)
+        call GetOmegaFromInitial(this, a_start, this%phi_i, initial_phidot, atol, omde1, omcdm1, phi_0_1)
         this%V0 = V0_2
-        om2 = GetOmegaFromInitial(this, a_start, this%phi_i, initial_phidot, atol)
+        call GetOmegaFromInitial(this, a_start, this%phi_i, initial_phidot, atol, omde2, omcdm2, phi_0_2)
         print*, "Target Omega_de:", omega_de_target
-        print*, "V0 = ", V0_1, "=> omega_de = ", om1
-        print*, "V0 = ", V0_2, "=> omega_de = ", om2
+        print*, "V0 = ", V0_1, "=> omega_de = ", omde1
+        print*, "V0 = ", V0_2, "=> omega_de = ", omde2
+
+        this%grhoc_i = this%grhoc_i * (this%phi_i/phi_0_1)
         
         do i = 1, max_iters
-            if (om1 > omega_de_target .or. om2 < omega_de_target) then
+            if (omde1 > omega_de_target .or. omde2 < omega_de_target) then
                 write (*,*) 'WARNING: initial guesses for V0 did not bracket the required value'
             end if
-            a_line = (om2 - om1)/(V0_2 - V0_1)
-		    b_line = om2 - a_line*V0_2
+            a_line = (omde2 - omde1)/(V0_2 - V0_1)
+		    b_line = omde2 - a_line*V0_2
             new_V0 = (omega_de_target - b_line)/a_line
             this%V0 = new_V0
-            om = GetOmegaFromInitial(this, a_start, this%phi_i, initial_phidot, atol)
-            error = (om - omega_de_target)/omega_de_target
-            print*, "V0 = ", new_V0, "=> omega_de = ", om, "(error = ", error, ")"
+            call GetOmegaFromInitial(this, a_start, this%phi_i, initial_phidot, atol, omde, omcdm, phi_0)
+            error_de = (omde1 - omega_de_target)/omega_de_target
+            error_cdm = (omcdm1 - omega_cdm_target)/omega_cdm_target
+            print*, "V0 = ", new_V0, "=> omega_de = ", omde, "(error = ", error_de, "), omega_cdm = ", omcdm, "(error = ", error_cdm, ")"
             
-            if (abs(error) < omega_de_tol) then 
+            if (abs(error_de) < omega_de_tol) then 
                 print*, "Finished shooting successfully after ", i, "iterations"
                 exit
             end if
 
-            if (om < omega_de_target) then
-                om1 = om
+            if (omde < omega_de_target) then
+                omde1 = omde
                 V0_1 = new_V0
             else
-                om2 = om
+                omde2 = omde
                 V0_2 = new_V0
             end if
         end do
@@ -959,7 +965,7 @@ contains
         vq=y(w_ix+1)
         ayprime(w_ix)= vq
 
-        rho_dm = this%rho_dm_i * (phi/this%phi_i) * (this%a_i/a)**3
+        rho_dm = this%grhoc_i * (phi/this%phi_i) * (this%a_i/a)**3
         deltaQ = (rho_dm*clxq - phi*y(cdm_ix))/phi**2
 
         ayprime(w_ix+1) = - 2*adotoa*vq - k*z*phidot - k**2*clxq - a**2*clxq*this%Vofphi(phi,2) + a*a*deltaQ
