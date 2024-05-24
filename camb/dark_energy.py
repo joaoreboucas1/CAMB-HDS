@@ -11,7 +11,7 @@ class DarkEnergyModel(F2003Class):
         ("__is_cosmological_constant", c_bool),
         ("__is_hybrid_sector", c_bool),
         ("__grhoc_i", c_double),
-        ("__phi_i", c_double),
+        ("phi_i", c_double),
         ("__a_i", c_double),
         ("__num_perturb_equations", c_int)]
 
