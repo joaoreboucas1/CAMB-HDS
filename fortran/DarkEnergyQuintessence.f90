@@ -826,7 +826,7 @@ contains
         !Make interpolation table, etc,
         !At this point massive neutrinos have been initialized
         !so grho_no_de can be used to get density and pressure of other components at scale factor a
-        
+        this%is_hybrid_sector = .true.
         call this%TQuintessence%Init(State)
         select type(State)
         class is (CAMBdata)

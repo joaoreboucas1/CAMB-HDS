@@ -9,6 +9,10 @@ class DarkEnergyModel(F2003Class):
     """
     _fields_ = [
         ("__is_cosmological_constant", c_bool),
+        ("__is_hybrid_sector", c_bool),
+        ("__grhoc_i", c_double),
+        ("__phi_i", c_double),
+        ("__a_i", c_double),
         ("__num_perturb_equations", c_int)]
 
     def validate_params(self):
@@ -216,6 +220,19 @@ class EarlyQuintessence(Quintessence):
             self.zc = zc
             self.fde_zc = fde_zc
 
+@fortran_class
+class HybridQuintessence(Quintessence):
+    r"""
+    Hybrid interacting dark sector
+    """
+
+    _fields_ = [
+        ("V0", c_double, "power index for potential"),        
+    ]
+    _fortran_class_name_ = 'THybridQuintessence'
+
+    def set_params(self, phi_i):
+        self.phi_i = phi_i
 
 # short names for models that support w/wa
-F2003Class._class_names.update({'fluid': DarkEnergyFluid, 'ppf': DarkEnergyPPF})
+F2003Class._class_names.update({'fluid': DarkEnergyFluid, 'ppf': DarkEnergyPPF, "HybridQuintessence": HybridQuintessence})
