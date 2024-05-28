@@ -1222,8 +1222,12 @@
 
     ! JVR MOD: changing CDM density
     if (this%CP%DarkEnergy%is_hybrid_sector) then
-        ! Might set a boolean flag for this
-        call this%CP%DarkEnergy%ValsAta(a, phi, phi_prime)
+        if (a > this%CP%DarkEnergy%a_i) then
+            call this%CP%DarkEnergy%ValsAta(a, phi, phi_prime)
+        else
+            phi = this%CP%DarkEnergy%phi_i
+        end if
+        
         grhoc_t = this%CP%DarkEnergy%grhoc_i * phi/this%CP%DarkEnergy%phi_i * (this%CP%DarkEnergy%a_i/a)**3 * a**4
     else
         grhoc_t = this%grhoc * a
