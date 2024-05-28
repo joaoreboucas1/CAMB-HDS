@@ -1224,7 +1224,7 @@
     if (this%CP%DarkEnergy%is_hybrid_sector) then
         ! Might set a boolean flag for this
         call this%CP%DarkEnergy%ValsAta(a, phi, phi_prime)
-        grhoc_t = grhoc_t * this%CP%DarkEnergy%grhoc_i * phi/this%CP%DarkEnergy%phi_i * (this%CP%DarkEnergy%a_i/a)**3 * a**4
+        grhoc_t = this%CP%DarkEnergy%grhoc_i * phi/this%CP%DarkEnergy%phi_i * (this%CP%DarkEnergy%a_i/a)**3 * a**4
     else
         grhoc_t = this%grhoc * a
     end if

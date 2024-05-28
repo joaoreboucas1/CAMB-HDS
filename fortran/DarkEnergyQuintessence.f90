@@ -749,7 +749,7 @@ contains
             call this%EvolveBackgroundLog(NumEqs, loga, y, y_prime)
             y(1) = y(1) + y_prime(1)*dloga
             y(2) = y(2) + y_prime(2)*dloga
-            ! print*, "a =", exp(loga), "phi =", y(1), "X =", y(2), "dphi/da =", y_prime(1), "dX/da =", y_prime(2)
+            ! print*, "a =", exp(loga), "phi =", y(1), "phi_prime =", y(2), "dphi/da =", y_prime(1), "dphi_prime/da =", y_prime(2)
         end do
 
         da = (1._dl - a_switch)/nsteps_linear
@@ -758,7 +758,7 @@ contains
             call this%EvolveBackground(NumEqs, a, y, y_prime)
             y(1) = y(1) + y_prime(1)*da
             y(2) = y(2) + y_prime(2)*da
-            ! print*, "a =", a, "phi =", y(1), "X =", y(2), "dphi/da =", y_prime(1), "dX/da =", y_prime(2)
+            ! print*, "a =", a, "phi =", y(1), "phi_prime =", y(2), "dphi/da =", y_prime(1), "dphi_prime/da =", y_prime(2)
         end do
 
         omega_de_0 = (0.5d0*y(2)**2 + this%Vofphi(y(1),0))/this%State%grhocrit
@@ -789,21 +789,31 @@ contains
         ! Variables are phi=y(1), phi' = y(2)
         ! Assume otherwise standard background components
         class(THybridQuintessence) :: this
-        integer num
-        real(dl) y(num),yprime(num)
-        real(dl) a, a2, tot
+        integer num, nu_i
+        real(dl) y(num), yprime(num)
+        real(dl) a, a2, tot, grhoa2, grhoc_t, rhonu
         real(dl) phi, grhode, phidot, adot
 
-        a2=a**2
+        a2 = a**2
         phi = y(1)
-        phidot = y(2)/a2
+        phidot = y(2)
 
-        grhode = a2*(0.5d0*phidot**2 + a2*this%Vofphi(phi,0))
-        tot = this%state%grho_no_de(a) + grhode ! 8*pi*G*a^4*rho
-
+        grhode = a2*(0.5d0*phidot**2 + a2*this%Vofphi(phi, 0))
+        
+        grhoc_t = this%grhoc_i * phi/this%phi_i * (this%a_i/a)**3 * a**4        
+        grhoa2 = this%state%grhok * a**2 + this%state%grhob * a + this%state%grhog + this%state%grhornomass
+        
+        if (this%state%CP%Num_Nu_massive /= 0) then
+            !Get massive neutrino density relative to massless
+            do nu_i = 1, this%state%CP%nu_mass_eigenstates
+                call ThermalNuBack%rho(a * this%state%nu_masses(nu_i), rhonu)
+                grhoa2 = grhoa2 + rhonu * this%state%grhormass(nu_i)
+            end do
+        end if
+        tot = grhoa2 + grhoc_t + grhode ! 8*pi*G*a^4*rho        
         adot = sqrt(tot/3.0d0) ! a*H_curly
         yprime(1) = phidot/adot ! dphi/da
-        yprime(2)= -2*phidot/a - a*this%grhoc_i*(phi/this%phi_i)*(this%a_i/a)**3/(phi*adot/a) ! dphi'/da
+        yprime(2) = -2*phidot/a - a*this%grhoc_i*(phi/this%phi_i)*(this%a_i/a)**3/(phi*adot/a) ! dphi'/da
     end subroutine THybridQuintessence_EvolveBackground
 
     subroutine THybridQuintessence_Init(this, State)
@@ -852,11 +862,14 @@ contains
             this%ddphidot_a(nsteps), &
             this%sampled_a(nsteps)   &
         )
+
+        this%a_i = a_start
         
         ! Binary search for V0
         V0_1 = this%State%grhov * 0.5_dl
         V0_2 = this%State%grhov * 1.3_dl
         print*, "Shooting for V0 with tentative values: ", V0_1, V0_2, "using phi_i = ", this%phi_i
+        print*, "Target Omega_de:", omega_de_target, "Target omega_cdm:", omega_cdm_target
         
         this%grhoc_i = this%State%grhoc * this%a_i**(-3)
 
@@ -867,7 +880,6 @@ contains
         call GetOmegaFromInitial(this, a_start, this%phi_i, initial_phidot, atol, omde1, omcdm1, phi_0_1)
         this%V0 = V0_2
         call GetOmegaFromInitial(this, a_start, this%phi_i, initial_phidot, atol, omde2, omcdm2, phi_0_2)
-        print*, "Target Omega_de:", omega_de_target
         print*, "V0 = ", V0_1, "=> omega_de = ", omde1
         print*, "V0 = ", V0_2, "=> omega_de = ", omde2
 
@@ -882,10 +894,12 @@ contains
             new_V0 = (omega_de_target - b_line)/a_line
             this%V0 = new_V0
             call GetOmegaFromInitial(this, a_start, this%phi_i, initial_phidot, atol, omde, omcdm, phi_0)
-            error_de = (omde1 - omega_de_target)/omega_de_target
-            error_cdm = (omcdm1 - omega_cdm_target)/omega_cdm_target
+            error_de = (omde - omega_de_target)/omega_de_target
+            error_cdm = (omcdm - omega_cdm_target)/omega_cdm_target
             print*, "V0 = ", new_V0, "=> omega_de = ", omde, "(error = ", error_de, "), omega_cdm = ", omcdm, "(error = ", error_cdm, ")"
             
+            this%grhoc_i = this%State%grhoc * this%a_i**(-3) * (this%phi_i/phi_0)
+
             if (abs(error_de) < omega_de_tol) then 
                 print*, "Finished shooting successfully after ", i, "iterations"
                 exit
@@ -900,8 +914,8 @@ contains
             end if
         end do
 
-        y(1) = initial_phi
-        y(2) = initial_phidot
+        y(1) = this%phi_i
+        y(2) = 0d0
         
         do i = 1, nsteps_log
             loga = log(a_start) + i*dloga
@@ -910,10 +924,11 @@ contains
             y(2) = y(2) + y_prime(2)*dloga
             this%sampled_a(i) = exp(loga)
             this%phi_a(i) = y(1)
-            this%phidot_a(i) = y(2)/this%sampled_a(i)**2
-            grho_no_de = this%State%grho_no_de(this%sampled_a(i))/this%sampled_a(i)**4
-            grho_de    = this%Vofphi(y(1), 0)*y(2)*(3*y(2)-1)
-            fde = grho_de/(grho_no_de + grho_de)
+            this%phidot_a(i) = y(2)
+            ! grho_no_de = this%State%grho_no_de(this%sampled_a(i))/this%sampled_a(i)**4
+            ! grho_de    = this%Vofphi(y(1), 0)*y(2)*(3*y(2)-1)
+            ! fde = grho_de/(grho_no_de + grho_de)
+            ! print*, "a =", exp(loga), "phi =", y(1)
         end do
 
         do i = 1, nsteps_linear
@@ -923,10 +938,11 @@ contains
             y(2) = y(2) + y_prime(2)*da
             this%sampled_a(nsteps_log + i) = a
             this%phi_a(nsteps_log + i) = y(1)
-            this%phidot_a(nsteps_log + i) = y(2)/a**2
-            grho_no_de = this%State%grho_no_de(a)/a**4
-            grho_de    = this%Vofphi(y(1), 0)*y(2)*(3*y(2)-1)
-            fde = grho_de/(grho_no_de + grho_de)
+            this%phidot_a(nsteps_log + i) = y(2)
+            ! grho_no_de = this%State%grho_no_de(a)/a**4
+            ! grho_de    = this%Vofphi(y(1), 0)*y(2)*(3*y(2)-1)
+            ! fde = grho_de/(grho_no_de + grho_de)
+            print*, "a =", a, "phi =", y(1)
         end do
 
         ! JVR NOTE: we need to deallocate phi_a, phidot_a, sampled_a

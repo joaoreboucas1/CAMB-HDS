@@ -6,12 +6,6 @@ omegab = omegabh2/h**2
 omegac = omegam - omegab
 omegach2 = omegac*h**2
 
-cases = [
-	{'A': 0, 'nu': 10},
-    {'A': 0.5, 'nu': 20},
-    {'A': 0.3, 'nu': 50},
-]
-
 cosmo = camb.set_params(# Background
 	H0=100*h, ombh2=omegabh2, omch2=omegach2, TCMB=2.7255,
 	# Dark Energy
