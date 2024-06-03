@@ -811,17 +811,21 @@
 
     taumin=GetTauStart(maxq)
 
+    
     !     Initialize baryon temperature and ionization fractions vs. time.
     !     This subroutine also fixes the timesteps where the sources are
     !     saved in order to do the integration. So TimeSteps is set here.
     !These routines in ThermoData (modules.f90)
     call State%ThermoData%Init(State,taumin)
+
     if (global_error_flag/=0) return
-
+    
     if (DebugMsgs .and. Feedbacklevel > 0) write (*,*) 'ThermoData.Init'
-
+    
+    
     !Do any array initialization for propagation equations
     call GaugeInterface_Init
+    
 
     if (Feedbacklevel > 0)  &
         write(*,'("tau_recomb/Mpc       = ",f7.2,"  tau_now/Mpc = ",f8.1)') State%tau_maxvis,State%tau0

@@ -2179,7 +2179,7 @@
     real(dl) phidot, polterdot, polterddot, octg, octgdot
     real(dl) ddopacity, visibility, dvisibility, ddvisibility, exptau, lenswindow
     real(dl) ISW, quadrupole_source, doppler, monopole_source, tau0, ang_dist
-    real(dl) dgrho_de, dgq_de, cs2_de
+    real(dl) dgrho_de, dgq_de, cs2_de, deltaQ, Q_interaction, rho_dm
 
     k=EV%k_buf
     k2=EV%k2_buf
@@ -2207,9 +2207,9 @@
     ! JVR MOD: changing CDM energy density
     if (State%CP%DarkEnergy%is_hybrid_sector) then
         call State%CP%DarkEnergy%ValsAta(a, phi_de, phi_prime_de)
-        grhoc_t=State%CP%DarkEnergy%grhoc_i * (phi_de/State%CP%DarkEnergy%phi_i) * (State%CP%DarkEnergy%a_i/a)**3 * a2
+        grhoc_t = State%CP%DarkEnergy%grhoc_i * (phi_de/State%CP%DarkEnergy%phi_i) * (State%CP%DarkEnergy%a_i/a)**3 * a2
     else
-        grhoc_t=State%grhoc/a
+        grhoc_t = State%grhoc/a
     end if
     grhor_t=State%grhornomass/a2
     grhog_t=State%grhog/a2
@@ -2316,8 +2316,12 @@
         EV%w_ix, a, adotoa, k, z, ay)
 
     !  CDM equation of motion
-    clxcdot=-k*z
-    ayprime(ix_clxc)=clxcdot
+    ! JVR MOD: Equation (42) from https://arxiv.org/pdf/2211.13653
+    rho_dm = grhoc_t/a2
+    deltaQ = rho_dm * (ay(EV%w_ix) - phi_de*clxc)/phi_de**2
+    Q_interaction = -rho_dm/phi_de
+    clxcdot = -k*z + Q_interaction*phi_prime_de*clxc/(rho_dm) - Q_interaction*ay(EV%w_ix + 1)/rho_dm - phi_prime_de*deltaQ/rho_dm
+    ayprime(ix_clxc) = clxcdot
 
     !  Baryon equation of motion.
     clxbdot=-k*(z+vb)

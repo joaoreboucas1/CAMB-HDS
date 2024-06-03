@@ -1226,9 +1226,8 @@
             call this%CP%DarkEnergy%ValsAta(a, phi, phi_prime)
         else
             phi = this%CP%DarkEnergy%phi_i
-        end if
-        
-        grhoc_t = this%CP%DarkEnergy%grhoc_i * phi/this%CP%DarkEnergy%phi_i * (this%CP%DarkEnergy%a_i/a)**3 * a**4
+        end if        
+        grhoc_t = this%CP%DarkEnergy%grhoc_i * phi/this%CP%DarkEnergy%phi_i * (this%CP%DarkEnergy%a_i)**3 * a
     else
         grhoc_t = this%grhoc * a
     end if
@@ -1853,6 +1852,7 @@
     times(1) = this%tauminn
     times(2:) = times(2:) + 2*(sqrt(1 + om*scale_factors(2)/ State%adotrad) -1)/om
     times(ninverse+nlin) = State%tau0
+
     call This%ScaleFactorAtTime%Init(times, scale_factors)
     taus(1) = this%tauminn
     do i=2,nthermo-1
@@ -1943,11 +1943,12 @@
     this%cs2(1)=4._dl/3._dl*barssc*this%tb(1)
     this%dotmu(1)=this%xe(1)*State%akthom/a0**2
 
-
+    
     !$OMP PARALLEL DO DEFAULT(SHARED), SCHEDULE(STATIC,16)
     do i=2,nthermo
         call CP%Recomb%xe_tm(this%scaleFactor(i), xe_a(i), this%tb(i))
     end do
+
 
     do i=2,nthermo
         tau =taus(i)

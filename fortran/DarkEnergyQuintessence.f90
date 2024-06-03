@@ -66,6 +66,7 @@ module Quintessence
         real(dl) :: V0
     contains
         procedure :: Vofphi => THybridQuintessence_VofPhi
+        procedure :: BackgroundDensityAndPressure => THybridQuintessence_BackgroundDensityAndPressure
         procedure :: Init => THybridQuintessence_Init
         procedure :: ReadParams => THybridQuintessence_ReadParams
         procedure :: EvolveBackground => THybridQuintessence_EvolveBackground
@@ -942,7 +943,7 @@ contains
             ! grho_no_de = this%State%grho_no_de(a)/a**4
             ! grho_de    = this%Vofphi(y(1), 0)*y(2)*(3*y(2)-1)
             ! fde = grho_de/(grho_no_de + grho_de)
-            print*, "a =", a, "phi =", y(1)
+            ! print*, "a =", a, "phi =", y(1)
         end do
 
         ! JVR NOTE: we need to deallocate phi_a, phidot_a, sampled_a
@@ -958,11 +959,9 @@ contains
         this%log_astart = log(a_start)
         this%maphidot_a_log = a_switch
 
+        ! Initializing spline tables
         call spline(this%sampled_a, this%phi_a, nsteps, splZero, splZero, this%ddphi_a)
         call spline(this%sampled_a, this%phidot_a, nsteps, splZero, splZero, this%ddphidot_a)
-
-        call this%ValsAta(a, phi, phidot)
-        print*, "Testing spline table:", phi, phidot
 
     end subroutine THybridQuintessence_Init
 
@@ -977,15 +976,37 @@ contains
         real(dl) clxq, vq, phi, phidot, deltaQ, rho_dm
 
         call this%ValsAta(a,phi,phidot) !wasting time calling this again..
-        clxq=y(w_ix)
-        vq=y(w_ix+1)
-        ayprime(w_ix)= vq
+        clxq = y(w_ix)
+        vq = y(w_ix+1)
+        ayprime(w_ix) = vq
 
         rho_dm = this%grhoc_i * (phi/this%phi_i) * (this%a_i/a)**3
-        deltaQ = (rho_dm*clxq - phi*y(cdm_ix))/phi**2
+        deltaQ = (rho_dm*clxq - phi*rho_dm*y(cdm_ix))/phi**2
 
         ayprime(w_ix+1) = - 2*adotoa*vq - k*z*phidot - k**2*clxq - a**2*clxq*this%Vofphi(phi,2) + a*a*deltaQ
     end subroutine THybridQuintessence_PerturbationEvolve
+
+    subroutine THybridQuintessence_BackgroundDensityAndPressure(this, grhov, a, grhov_t, w)
+        !Get grhov_t = 8*pi*rho_de*a**2 and (optionally) equation of state at scale factor a
+        class(THybridQuintessence), intent(inout) :: this
+        real(dl), intent(in) :: grhov, a
+        real(dl), intent(out) :: grhov_t
+        real(dl), optional, intent(out) :: w
+        real(dl) V, a2, grhov_lambda, phi, phidot
+
+        if (a >= this%astart) then
+            a2 = a**2
+            call this%ValsAta(a, phi, phidot)
+            V = this%Vofphi(phi, 0)
+            grhov_t = phidot**2/2 + a2*V
+            if (present(w)) then
+                w = (phidot**2/2 - a2*V)/grhov_t
+            end if
+        else
+            grhov_t = this%V0
+            if (present(w)) w = -1
+        end if
+    end subroutine THybridQuintessence_BackgroundDensityAndPressure
 
     function THybridQuintessence_PythonClass()
         character(LEN=:), allocatable :: THybridQuintessence_PythonClass
