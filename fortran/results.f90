@@ -932,7 +932,7 @@
     class(CAMBdata) :: this
     integer, intent(in) :: n
     real(dl), intent(in) :: a_arr(n)
-    real(dl) :: grhov_t, rhonu, grhonu, a
+    real(dl) :: grhov_t, rhonu, grhonu, a, grhoc, phi, phi_prime
     real(dl), intent(out) :: densities(8,n)
     integer nu_i,i
 
@@ -950,7 +950,16 @@
         end if
 
         densities(2,i) = this%grhok * a**2
-        densities(3,i) = this%grhoc * a
+        ! JVR MOD: must change CDM density here, but it doesn't affect any calculation
+        ! densities(3,i) = this%grhoc * a
+        if (this%CP%DarkEnergy%is_hybrid_sector) then
+            call this%CP%DarkEnergy%ValsAta(a, phi, phi_prime)
+            phi = this%CP%DarkEnergy%phi_i        
+            grhoc = this%CP%DarkEnergy%grhoc_i * phi/this%CP%DarkEnergy%phi_i * (this%CP%DarkEnergy%a_i)**3 * a
+        else
+            grhoc = this%grhoc * a
+        end if
+        densities(3, i) = grhoc
         densities(4,i) = this%grhob * a
         densities(5,i) = this%grhog
         densities(6,i) = this%grhornomass
