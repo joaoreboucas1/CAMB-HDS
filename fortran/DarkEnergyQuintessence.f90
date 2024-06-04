@@ -821,8 +821,9 @@ contains
         class(THybridQuintessence), intent(inout) :: this
         class(TCAMBdata), intent(in), target :: State
         integer,  parameter :: NumEqs = 2, max_iters = 20
-        integer,  parameter :: nsteps_linear = 1000, nsteps_log = 1000, nsteps = nsteps_log + nsteps_linear
+        integer,  parameter :: nsteps_linear = 2000, nsteps_log = 2000, nsteps = nsteps_log + nsteps_linear
         real(dl), parameter :: omega_de_tol = 1e-4
+        real(dl), parameter :: omega_cdm_tol = 1e-6
         real(dl), parameter :: splZero = 0._dl
         real(dl), parameter :: a_start = 1e-5, a_switch = 1e-3
         real(dl), parameter :: dloga = (log(a_switch) - log(a_start))/nsteps_log, da = (1._dl - a_switch)/nsteps_linear
@@ -899,12 +900,13 @@ contains
             error_cdm = (omcdm - omega_cdm_target)/omega_cdm_target
             print*, "V0 = ", new_V0, "=> omega_de = ", omde, "(error = ", error_de, "), omega_cdm = ", omcdm, "(error = ", error_cdm, ")"
             
-            this%grhoc_i = this%State%grhoc * this%a_i**(-3) * (this%phi_i/phi_0)
-
-            if (abs(error_de) < omega_de_tol) then 
+            if (abs(error_de) < omega_de_tol .and. abs(error_cdm) < omega_cdm_tol) then 
                 print*, "Finished shooting successfully after ", i, "iterations"
                 exit
             end if
+
+            this%grhoc_i = this%State%grhoc * this%a_i**(-3) * (this%phi_i/phi_0)
+
 
             if (omde < omega_de_target) then
                 omde1 = omde

@@ -2207,7 +2207,7 @@
     ! JVR MOD: changing CDM energy density
     if (State%CP%DarkEnergy%is_hybrid_sector) then
         call State%CP%DarkEnergy%ValsAta(a, phi_de, phi_prime_de)
-        grhoc_t = State%CP%DarkEnergy%grhoc_i * (phi_de/State%CP%DarkEnergy%phi_i) * (State%CP%DarkEnergy%a_i/a)**3 * a2
+        grhoc_t = State%CP%DarkEnergy%grhoc_i * (phi_de/State%CP%DarkEnergy%phi_i) * (State%CP%DarkEnergy%a_i)**3 / a
     else
         grhoc_t = State%grhoc/a
     end if
@@ -2320,7 +2320,7 @@
     rho_dm = grhoc_t/a2
     deltaQ = rho_dm * (ay(EV%w_ix) - phi_de*clxc)/phi_de**2
     Q_interaction = -rho_dm/phi_de
-    clxcdot = -k*z + Q_interaction*phi_prime_de*clxc/(rho_dm) - Q_interaction*ay(EV%w_ix + 1)/rho_dm - phi_prime_de*deltaQ/rho_dm
+    clxcdot = -k*z + phi_prime_de/phi_de*clxc + ay(EV%w_ix+1)/phi_de - phi_prime_de*ay(EV%w_ix)/phi_de**2!+ Q_interaction*phi_prime_de*clxc/(rho_dm) - Q_interaction*ay(EV%w_ix + 1)/rho_dm - phi_prime_de*deltaQ/rho_dm
     ayprime(ix_clxc) = clxcdot
 
     !  Baryon equation of motion.
