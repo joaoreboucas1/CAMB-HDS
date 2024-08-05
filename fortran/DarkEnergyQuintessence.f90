@@ -762,7 +762,7 @@ contains
             ! print*, "a =", a, "phi =", y(1), "phi_prime =", y(2), "dphi/da =", y_prime(1), "dphi_prime/da =", y_prime(2)
         end do
 
-        omega_de_0 = (0.5d0*y(2)**2 + this%Vofphi(y(1),0))/this%State%grhocrit
+        omega_de_0 = (0.5d0*y(2)**2 + this%Vofphi(y(1), 0))/this%State%grhocrit
         phi_0 = y(1)
         omega_cdm_0 = this%grhoc_i * (phi_0/this%phi_i) * (this%a_i)**3 / this%State%grhocrit
     end subroutine GetOmegaFromInitial
@@ -801,7 +801,7 @@ contains
 
         grhode = a2*(0.5d0*phidot**2 + a2*this%Vofphi(phi, 0))
         
-        grhoc_t = this%grhoc_i * phi/this%phi_i * (this%a_i/a)**3 * a**4        
+        grhoc_t = this%grhoc_i * phi/this%phi_i * (this%a_i)**3 * a
         grhoa2 = this%state%grhok * a**2 + this%state%grhob * a + this%state%grhog + this%state%grhornomass
         
         if (this%state%CP%Num_Nu_massive /= 0) then
@@ -814,7 +814,7 @@ contains
         tot = grhoa2 + grhoc_t + grhode ! 8*pi*G*a^4*rho        
         adot = sqrt(tot/3.0d0) ! a*H_curly
         yprime(1) = phidot/adot ! dphi/da
-        yprime(2) = -2*phidot/a - a*this%grhoc_i*(phi/this%phi_i)*(this%a_i/a)**3/(phi*adot/a) ! dphi'/da
+        yprime(2) = -2*phidot/a - a*grhoc_t/a**4/(phi*adot/a) ! dphi'/da
     end subroutine THybridQuintessence_EvolveBackground
 
     subroutine THybridQuintessence_Init(this, State)
@@ -838,11 +838,11 @@ contains
         !Make interpolation table, etc,
         !At this point massive neutrinos have been initialized
         !so grho_no_de can be used to get density and pressure of other components at scale factor a
+        call this%TQuintessence%Init(State) 
         this%is_hybrid_sector = .true.
-        call this%TQuintessence%Init(State)
         select type(State)
         class is (CAMBdata)
-            omega_de_target = State%Omega_de
+            omega_de_target  = State%grhov/State%grhocrit
             omega_cdm_target = State%grhoc/State%grhocrit
         end select
 
@@ -906,7 +906,6 @@ contains
             end if
 
             this%grhoc_i = this%State%grhoc * this%a_i**(-3) * (this%phi_i/phi_0)
-
 
             if (omde < omega_de_target) then
                 omde1 = omde
@@ -1000,9 +999,9 @@ contains
             a2 = a**2
             call this%ValsAta(a, phi, phidot)
             V = this%Vofphi(phi, 0)
-            grhov_t = phidot**2/2 + a2*V
+            grhov_t = 0.5d0*phidot**2 + a2*V
             if (present(w)) then
-                w = (phidot**2/2 - a2*V)/grhov_t
+                w = (0.5d0*phidot**2 - a2*V)/grhov_t
             end if
         else
             grhov_t = this%V0
