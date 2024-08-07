@@ -984,7 +984,7 @@ contains
         rho_dm = this%grhoc_i * (phi/this%phi_i) * (this%a_i/a)**3
         deltaQ = (rho_dm*clxq - phi*rho_dm*y(cdm_ix))/phi**2
 
-        ayprime(w_ix+1) = - 2*adotoa*vq - k*z*phidot - k**2*clxq - a**2*clxq*this%Vofphi(phi,2) + a*a*deltaQ
+        ayprime(w_ix+1) = - 2*adotoa*vq - k*z*phidot - k**2*clxq - a**2*clxq*this%Vofphi(phi,2) - a*a*deltaQ
     end subroutine THybridQuintessence_PerturbationEvolve
 
     subroutine THybridQuintessence_BackgroundDensityAndPressure(this, grhov, a, grhov_t, w)

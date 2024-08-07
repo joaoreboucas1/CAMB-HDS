@@ -2211,6 +2211,7 @@
     else
         grhoc_t = State%grhoc/a
     end if
+
     grhor_t=State%grhornomass/a2
     grhog_t=State%grhog/a2
 
@@ -2315,12 +2316,17 @@
         call State%CP%DarkEnergy%PerturbationEvolve(ayprime, w_dark_energy_t, &
         EV%w_ix, a, adotoa, k, z, ay)
 
-    !  CDM equation of motion
+    ! CDM equation of motion
     ! JVR MOD: Equation (42) from https://arxiv.org/pdf/2211.13653
-    rho_dm = grhoc_t/a2
-    deltaQ = rho_dm * (ay(EV%w_ix) - phi_de*clxc)/phi_de**2
-    Q_interaction = -rho_dm/phi_de
-    clxcdot = -k*z + phi_prime_de/phi_de*clxc + ay(EV%w_ix+1)/phi_de - phi_prime_de*ay(EV%w_ix)/phi_de**2!+ Q_interaction*phi_prime_de*clxc/(rho_dm) - Q_interaction*ay(EV%w_ix + 1)/rho_dm - phi_prime_de*deltaQ/rho_dm
+    if (State%CP%DarkEnergy%is_hybrid_sector) then
+        rho_dm = grhoc_t/a2
+        deltaQ = rho_dm * (ay(EV%w_ix) - phi_de*clxc)/phi_de**2
+        Q_interaction = -rho_dm/phi_de
+        ! clxcdot = -k*z + (ay(EV%W_ix + 1)/phi_de + phi_prime_de*clxc/phi_de - phi_prime_de/(phi_de**2)*ay(EV%w_ix)) ! My guess of just perturbing Q
+        clxcdot = -k*z + Q_interaction*phi_prime_de*clxc/rho_dm - Q_interaction*ay(EV%w_ix + 1)/rho_dm - phi_prime_de*deltaQ/rho_dm ! Equation (42) from https://arxiv.org/pdf/2211.13653
+    else 
+        clxcdot = -k*z
+    end if
     ayprime(ix_clxc) = clxcdot
 
     !  Baryon equation of motion.
