@@ -199,6 +199,10 @@ contains
             return
         elseif (a < this%astart) then
             aphi = this%phi_a(1)
+            select type(this)
+                class is (THybridQuintessence)
+                aphi = this%phi_i
+            end select
             aphidot = 0
             return
         elseif (a > this%maphidot_a_log) then
@@ -372,54 +376,6 @@ contains
             deallocate(this%ddphi_a,this%ddphidot_a, this%sampled_a)
         end if
         allocate(phi_a(npoints),phidot_a(npoints), sampled_a(npoints), fde(npoints))
-
-        !initial_phi  = 10  !  0.3*grhom/m**3
-        !initial_phi2 = 100 !   6*grhom/m**3
-        !
-        !!           initial_phi  = 65 !  0.3*grhom/m**3
-        !!           initial_phi2 = 65 !   6*grhom/m**3
-        !
-        !astart=1d-9
-        !
-        !!See if initial conditions are giving correct omega_de now
-        !atol=1d-8
-        !initial_phidot =  astart*this%phidot_start(this%initial_phi)
-        !om1= this%GetOmegaFromInitial(astart,initial_phi,initial_phidot, atol)
-        !
-        !print*, State%omega_de, 'first trial:', om1
-        !if (abs(om1-State%omega_de > this%omega_tol)) then
-        !    !if not, do binary search in the interval
-        !    OK=.false.
-        !    initial_phidot = astart*this%phidot_start(initial_phi2)
-        !    om2= this%GetOmegaFromInitial(astart,initial_phi2,initial_phidot, atol)
-        !    if (om1 > State%omega_de .or. om2 < State%omega_de) then
-        !        write (*,*) 'initial phi values must bracket required value.  '
-        !        write (*,*) 'om1, om2 = ', real(om1), real(om2)
-        !        stop
-        !    end if
-        !    do iter=1,100
-        !        deltaphi=initial_phi2-initial_phi
-        !        phi =initial_phi + deltaphi/2
-        !        initial_phidot =  astart*Quint_phidot_start(phi)
-        !        om = this%GetOmegaFromInitial(astart,phi,initial_phidot,atol)
-        !        if (om < State%omega_de) then
-        !            om1=om
-        !            initial_phi=phi
-        !        else
-        !            om2=om
-        !            initial_phi2=phi
-        !        end if
-        !        if (om2-om1 < 1d-3) then
-        !            OK=.true.
-        !            initial_phi = (initial_phi2+initial_phi)/2
-        !            if (FeedbackLevel > 0) write(*,*) 'phi_initial = ',initial_phi
-        !            exit
-        !        end if
-        !
-        !    end do !iterations
-        !    if (.not. OK) stop 'Search for good intial conditions did not converge' !this shouldn't happen
-        !
-        !end if !Find initial
 
         initial_phi = this%theta_i*this%f
 
@@ -811,6 +767,7 @@ contains
                 grhoa2 = grhoa2 + rhonu * this%state%grhormass(nu_i)
             end do
         end if
+
         tot = grhoa2 + grhoc_t + grhode ! 8*pi*G*a^4*rho        
         adot = sqrt(tot/3.0d0) ! a*H_curly
         yprime(1) = phidot/adot ! dphi/da
@@ -825,7 +782,7 @@ contains
         real(dl), parameter :: omega_de_tol = 1e-4
         real(dl), parameter :: omega_cdm_tol = 1e-6
         real(dl), parameter :: splZero = 0._dl
-        real(dl), parameter :: a_start = 1e-5, a_switch = 5e-3
+        real(dl), parameter :: a_start = 1e-6, a_switch = 5e-3
         real(dl), parameter :: dloga = (log(a_switch) - log(a_start))/nsteps_log, da = (1._dl - a_switch)/nsteps_linear
         real(dl)            :: y(NumEqs), y_prime(NumEqs)
         real(dl)            :: omega_de_target, omega_cdm_target, omde, omcdm, omde1, omde2, omcdm1, omcdm2, phi_0, phi_0_1, phi_0_2
