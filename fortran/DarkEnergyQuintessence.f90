@@ -782,7 +782,7 @@ contains
         real(dl), parameter :: omega_de_tol = 1e-4
         real(dl), parameter :: omega_cdm_tol = 1e-6
         real(dl), parameter :: splZero = 0._dl
-        real(dl), parameter :: a_start = 1e-6, a_switch = 5e-3
+        real(dl), parameter :: a_start = 1e-7, a_switch = 5e-3
         real(dl), parameter :: dloga = (log(a_switch) - log(a_start))/nsteps_log, da = (1._dl - a_switch)/nsteps_linear
         real(dl)            :: y(NumEqs), y_prime(NumEqs)
         real(dl)            :: omega_de_target, omega_cdm_target, omde, omcdm, omde1, omde2, omcdm1, omcdm2, phi_0, phi_0_1, phi_0_2

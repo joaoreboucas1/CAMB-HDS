@@ -2322,9 +2322,11 @@
         rho_dm = grhoc_t/a2
         deltaQ = rho_dm * (ay(EV%w_ix) - phi_de*clxc)/phi_de**2
         Q_interaction = -rho_dm/phi_de
-        ! clxcdot = -k*z + Q_interaction*phi_prime_de*clxc/rho_dm - Q_interaction*ay(EV%w_ix + 1)/rho_dm - phi_prime_de*deltaQ/rho_dm ! Equation (42) from https://arxiv.org/pdf/2211.13653
+        clxcdot = -k*z - Q_interaction*phi_prime_de*clxc/rho_dm - Q_interaction*ay(EV%w_ix + 1)/rho_dm + phi_prime_de*deltaQ/rho_dm + phi_prime_de*clxc/phi_de ! Equation (42) from https://arxiv.org/pdf/2211.13653
+        1 clxcdot = -k*z - Q_interaction*phi_prime_de*clxc/rho_dm - Q_interaction*ay(EV%w_ix + 1)/rho_dm + phi_prime_de*deltaQ/rho_dm + phi_prime_de*clxc/phi_de ! This combination fixes the matter power spectrum
+        ! clxcdot = -k*z + Q_interaction*phi_prime_de*clxc/rho_dm + Q_interaction*ay(EV%w_ix + 1)/rho_dm + phi_prime_de*deltaQ/rho_dm - phi_prime_de*clxc/phi_de ! This specific form fixes the CMB TT power spectrum with minus sign in quintessence a2 \delta Q
         ! clxcdot = -k*z + ay(EV%w_ix + 1)/phi_de - phi_prime_de*ay(EV%w_ix)/phi_de**2 ! This equation is equivalent to equation (42)
-        clxcdot = -k*z + ay(EV%w_ix + 1)/phi_de - phi_prime_de*ay(EV%w_ix)/phi_de**2 - phi_prime_de*clxc/phi_de ! Additional term coming from perturbing the background equation
+        ! clxcdot = -k*z + ay(EV%w_ix + 1)/phi_de - phi_prime_de*ay(EV%w_ix)/phi_de**2 - phi_prime_de*clxc/phi_de ! Additional term coming from perturbing the background equation
     else 
         clxcdot = -k*z
     end if
