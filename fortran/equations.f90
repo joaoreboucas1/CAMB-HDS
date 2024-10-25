@@ -44,9 +44,11 @@
 
     logical, parameter :: plot_evolve = .false. !for outputing time evolution
 
-    integer, parameter :: basic_num_eqns = 4
-    integer, parameter :: ix_etak=1, ix_clxc=2, ix_clxb=3, ix_vb=4 !Scalar array indices for each quantity
+    ! JVR MOD BEGIN: changing the basic number of equations to include CDM velocity
+    integer, parameter :: basic_num_eqns = 5
+    integer, parameter :: ix_etak=1, ix_clxc=2, ix_vc=3, ix_clxb=4, ix_vb=5 !Scalar array indices for each quantity
     integer, parameter :: ixt_H = 1, ixt_shear = 2 !tensor indices
+    ! JVR MOD end
 
     logical :: DoTensorNeutrinos = .true.
 
@@ -1769,6 +1771,7 @@
     real(dl) k,k2
     real(dl) a,a2, iqg, rhomass,a_massive, ep
     integer l,i, nu_i, j, ind
+    ! JVR MOD begin: changing the indices
     integer, parameter :: i_clxg=1,i_clxr=2,i_clxc=3, i_clxb=4, &
         i_qg=5,i_qr=6,i_vb=7,i_pir=8, i_eta=9, i_aj3r=10,i_clxde=11,i_vde=12
     integer, parameter :: i_max = i_vde
@@ -1855,6 +1858,7 @@
     initv(1,i_qg)=initv(1,i_clxg)*x/9._dl
     initv(1,i_qr)=-chi*EV%Kf(1)*(4*Rv+23)/Rp15*x3/27
     initv(1,i_vb)=0.75_dl*initv(1,i_qg)
+    initv(1,i_vb)=0.75_dl*initv(1,i_qg)
     initv(1,i_pir)=chi*4._dl/3*x2/Rp15*(1+omtau/4*(4*Rv-5)/(2*Rv+15))
     initv(1,i_aj3r)=chi*4/21._dl/Rp15*x3
     initv(1,i_eta)=-chi*2*EV%Kf(1)*(1 - x2/12*(-10._dl/Rp15 + EV%Kf(1)))
@@ -1925,6 +1929,9 @@
 
     !  CDM
     y(ix_clxc)=InitVec(i_clxc)
+    ! JVR MOD BEGIN: setting the initial CDM velocity to zero
+    y(ix_vc) = 0
+    ! JVR MOD end
 
     !  Baryons
     y(ix_clxb)=InitVec(i_clxb)
@@ -2179,7 +2186,7 @@
     real(dl) phidot, polterdot, polterddot, octg, octgdot
     real(dl) ddopacity, visibility, dvisibility, ddvisibility, exptau, lenswindow
     real(dl) ISW, quadrupole_source, doppler, monopole_source, tau0, ang_dist
-    real(dl) dgrho_de, dgq_de, cs2_de, deltaQ, Q_interaction, rho_dm
+    real(dl) dgrho_de, dgq_de, cs2_de, deltaQ, Q_interaction, rho_dm, v_cdm
 
     k=EV%k_buf
     k2=EV%k2_buf
@@ -2196,6 +2203,8 @@
 
     !  CDM variables
     clxc=ay(ix_clxc)
+    ! JVR MOD BEGIN: adding CDM velocity
+    v_cdm = ay(ix_vc)
 
     !  Baryon variables
     clxb=ay(ix_clxb)
@@ -2226,7 +2235,9 @@
     !  8*pi*a*a*SUM[rho_i*clx_i]
     dgrho_matter=grhob_t*clxb+grhoc_t*clxc
     !  8*pi*a*a*SUM[(rho_i+p_i)*v_i]
-    dgq=grhob_t*vb
+    ! JVR MOD begin: adding CDM velocity in here
+    dgq=grhob_t*vb+grhoc_t*v_cdm
+    ! JVR MOD end
 
     gpres_nu=0
     grhonu_t=0
@@ -2322,13 +2333,11 @@
         rho_dm = grhoc_t/a2
         deltaQ = rho_dm * (ay(EV%w_ix) - phi_de*clxc)/phi_de**2
         Q_interaction = -rho_dm/phi_de
-        clxcdot = -k*z - Q_interaction*phi_prime_de*clxc/rho_dm - Q_interaction*ay(EV%w_ix + 1)/rho_dm + phi_prime_de*deltaQ/rho_dm + phi_prime_de*clxc/phi_de ! Equation (42) from https://arxiv.org/pdf/2211.13653
-        1 clxcdot = -k*z - Q_interaction*phi_prime_de*clxc/rho_dm - Q_interaction*ay(EV%w_ix + 1)/rho_dm + phi_prime_de*deltaQ/rho_dm + phi_prime_de*clxc/phi_de ! This combination fixes the matter power spectrum
-        ! clxcdot = -k*z + Q_interaction*phi_prime_de*clxc/rho_dm + Q_interaction*ay(EV%w_ix + 1)/rho_dm + phi_prime_de*deltaQ/rho_dm - phi_prime_de*clxc/phi_de ! This specific form fixes the CMB TT power spectrum with minus sign in quintessence a2 \delta Q
-        ! clxcdot = -k*z + ay(EV%w_ix + 1)/phi_de - phi_prime_de*ay(EV%w_ix)/phi_de**2 ! This equation is equivalent to equation (42)
-        ! clxcdot = -k*z + ay(EV%w_ix + 1)/phi_de - phi_prime_de*ay(EV%w_ix)/phi_de**2 - phi_prime_de*clxc/phi_de ! Additional term coming from perturbing the background equation
+        clxcdot = -k*(z + v_cdm) + Q_interaction*phi_prime_de*clxc/rho_dm - Q_interaction*ay(EV%w_ix + 1)/rho_dm - phi_prime_de*deltaQ/rho_dm ! Equation (42) from https://arxiv.org/pdf/2211.13653
+        ayprime(ix_vc) = -adotoa*v_cdm + Q_interaction*phi_prime_de*v_cdm/rho_dm - Q_interaction*k*ay(EV%w_ix)/rho_dm
     else 
         clxcdot = -k*z
+        ayprime(ix_vc) = 0d0
     end if
     ayprime(ix_clxc) = clxcdot
 

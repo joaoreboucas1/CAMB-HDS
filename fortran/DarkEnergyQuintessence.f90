@@ -778,11 +778,11 @@ contains
         class(THybridQuintessence), intent(inout) :: this
         class(TCAMBdata), intent(in), target :: State
         integer,  parameter :: NumEqs = 2, max_iters = 20
-        integer,  parameter :: nsteps_linear = 2000, nsteps_log = 2000, nsteps = nsteps_log + nsteps_linear
-        real(dl), parameter :: omega_de_tol = 1e-4
-        real(dl), parameter :: omega_cdm_tol = 1e-6
+        integer,  parameter :: nsteps_linear = 10000, nsteps_log = 2000, nsteps = nsteps_log + nsteps_linear
+        real(dl), parameter :: omega_de_tol = 1e-6
+        real(dl), parameter :: omega_cdm_tol = 1e-7
         real(dl), parameter :: splZero = 0._dl
-        real(dl), parameter :: a_start = 1e-7, a_switch = 5e-3
+        real(dl), parameter :: a_start = 1e-7, a_switch = 3e-4
         real(dl), parameter :: dloga = (log(a_switch) - log(a_start))/nsteps_log, da = (1._dl - a_switch)/nsteps_linear
         real(dl)            :: y(NumEqs), y_prime(NumEqs)
         real(dl)            :: omega_de_target, omega_cdm_target, omde, omcdm, omde1, omde2, omcdm1, omcdm2, phi_0, phi_0_1, phi_0_2
@@ -859,6 +859,7 @@ contains
             
             if (abs(error_de) < omega_de_tol .and. abs(error_cdm) < omega_cdm_tol) then 
                 print*, "Finished shooting successfully after ", i, "iterations"
+                this%grhoc_i = this%State%grhoc * this%a_i**(-3) * (this%phi_i/phi_0)
                 exit
             end if
 
@@ -884,10 +885,6 @@ contains
             this%sampled_a(i) = exp(loga)
             this%phi_a(i) = y(1)
             this%phidot_a(i) = y(2)
-            ! grho_no_de = this%State%grho_no_de(this%sampled_a(i))/this%sampled_a(i)**4
-            ! grho_de    = this%Vofphi(y(1), 0)*y(2)*(3*y(2)-1)
-            ! fde = grho_de/(grho_no_de + grho_de)
-            ! print*, "a =", exp(loga), "phi =", y(1)
         end do
 
         do i = 1, nsteps_linear
@@ -898,10 +895,6 @@ contains
             this%sampled_a(nsteps_log + i) = a
             this%phi_a(nsteps_log + i) = y(1)
             this%phidot_a(nsteps_log + i) = y(2)
-            ! grho_no_de = this%State%grho_no_de(a)/a**4
-            ! grho_de    = this%Vofphi(y(1), 0)*y(2)*(3*y(2)-1)
-            ! fde = grho_de/(grho_no_de + grho_de)
-            ! print*, "a =", a, "phi =", y(1)
         end do
 
         ! JVR NOTE: we need to deallocate phi_a, phidot_a, sampled_a
@@ -940,9 +933,7 @@ contains
 
         rho_dm = this%grhoc_i * (phi/this%phi_i) * (this%a_i/a)**3
         deltaQ = rho_dm*(clxq - phi*y(cdm_ix))/phi**2
-
-        ! ayprime(w_ix+1) = - 2*adotoa*vq - k*z*phidot - k**2*clxq - a**2*clxq*this%Vofphi(phi,2) + a*a*deltaQ ! JVR: original equation
-        ayprime(w_ix+1) = - 2*adotoa*vq - k*z*phidot - k**2*clxq - a**2*clxq*this%Vofphi(phi,2) - a*a*deltaQ ! JVR: playing with signs
+        ayprime(w_ix+1) = - 2*adotoa*vq - k*z*phidot - k**2*clxq - a**2*clxq*this%Vofphi(phi,2)!  + a*a*deltaQ ! JVR: original equation
     end subroutine THybridQuintessence_PerturbationEvolve
 
     subroutine THybridQuintessence_BackgroundDensityAndPressure(this, grhov, a, grhov_t, w)
