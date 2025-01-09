@@ -13,7 +13,8 @@ class DarkEnergyModel(F2003Class):
         ("__grhoc_i", c_double),
         ("phi_i", c_double),
         ("__a_i", c_double),
-        ("__num_perturb_equations", c_int)]
+        ("__num_perturb_equations", c_int)
+    ]
 
     def validate_params(self):
         return True
@@ -220,6 +221,7 @@ class EarlyQuintessence(Quintessence):
             self.zc = zc
             self.fde_zc = fde_zc
 
+# JVR mod begin: adding interface for HybridQuintessence class
 @fortran_class
 class HybridQuintessence(Quintessence):
     r"""
@@ -228,11 +230,13 @@ class HybridQuintessence(Quintessence):
 
     _fields_ = [
         ("V0", c_double, "power index for potential"),        
+        ("log_shooting", c_bool, "whether to log the shooting"),        
     ]
     _fortran_class_name_ = 'THybridQuintessence'
 
-    def set_params(self, phi_i):
+    def set_params(self, phi_i, log_shooting=False):
         self.phi_i = phi_i
+        self.log_shooting = log_shooting
 
 # short names for models that support w/wa
 F2003Class._class_names.update({'fluid': DarkEnergyFluid, 'ppf': DarkEnergyPPF, "HybridQuintessence": HybridQuintessence})

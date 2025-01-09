@@ -64,6 +64,7 @@ module Quintessence
 
     type, extends(TQuintessence) :: THybridQuintessence
         real(dl) :: V0
+        logical :: log_shooting = .false.
     contains
         procedure :: Vofphi => THybridQuintessence_VofPhi
         procedure :: BackgroundDensityAndPressure => THybridQuintessence_BackgroundDensityAndPressure
@@ -827,8 +828,10 @@ contains
         ! Binary search for V0
         V0_1 = this%State%grhov * 0.5_dl
         V0_2 = this%State%grhov * 1.3_dl
-        print*, "Shooting for V0 with tentative values: ", V0_1, V0_2, "using phi_i = ", this%phi_i
-        print*, "Target Omega_de:", omega_de_target, "Target omega_cdm:", omega_cdm_target
+        if (this%log_shooting) then
+            print*, "Shooting for V0 with tentative values: ", V0_1, V0_2, "using phi_i = ", this%phi_i
+            print*, "Target Omega_de:", omega_de_target, "Target omega_cdm:", omega_cdm_target
+        end if
         
         this%grhoc_i = this%State%grhoc * this%a_i**(-3)
 
@@ -839,13 +842,16 @@ contains
         call GetOmegaFromInitial(this, a_start, this%phi_i, initial_phidot, atol, omde1, omcdm1, phi_0_1)
         this%V0 = V0_2
         call GetOmegaFromInitial(this, a_start, this%phi_i, initial_phidot, atol, omde2, omcdm2, phi_0_2)
-        print*, "V0 = ", V0_1, "=> omega_de = ", omde1
-        print*, "V0 = ", V0_2, "=> omega_de = ", omde2
+        
+        if (this%log_shooting) then
+            print*, "V0 = ", V0_1, "=> omega_de = ", omde1
+            print*, "V0 = ", V0_2, "=> omega_de = ", omde2
+        end if
 
         this%grhoc_i = this%grhoc_i * (this%phi_i/phi_0_1)
         
         do i = 1, max_iters
-            if (omde1 > omega_de_target .or. omde2 < omega_de_target) then
+            if ((omde1 > omega_de_target .or. omde2 < omega_de_target) .and. this%log_shooting) then
                 write (*,*) 'WARNING: initial guesses for V0 did not bracket the required value'
             end if
             a_line = (omde2 - omde1)/(V0_2 - V0_1)
@@ -855,10 +861,13 @@ contains
             call GetOmegaFromInitial(this, a_start, this%phi_i, initial_phidot, atol, omde, omcdm, phi_0)
             error_de = (omde - omega_de_target)/omega_de_target
             error_cdm = (omcdm - omega_cdm_target)/omega_cdm_target
-            print*, "V0 = ", new_V0, "=> omega_de = ", omde, "(error = ", error_de, "), omega_cdm = ", omcdm, "(error = ", error_cdm, ")"
-            
+            if (this%log_shooting) then
+                print*, "V0 = ", new_V0, "=> omega_de = ", omde, "(error = ", error_de, "), omega_cdm = ", omcdm, "(error = ", error_cdm, ")"
+            end if
             if (abs(error_de) < omega_de_tol .and. abs(error_cdm) < omega_cdm_tol) then 
-                print*, "Finished shooting successfully after ", i, "iterations"
+                if (this%log_shooting) then
+                    print*, "Finished shooting successfully after ", i, "iterations"
+                end if
                 this%grhoc_i = this%State%grhoc * this%a_i**(-3) * (this%phi_i/phi_0)
                 exit
             end if
