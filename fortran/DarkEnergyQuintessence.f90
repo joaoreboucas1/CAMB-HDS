@@ -63,7 +63,7 @@ module Quintessence
     end type TEarlyQuintessence
 
     type, extends(TQuintessence) :: THybridQuintessence
-        real(dl) :: V0
+        real(dl) :: V0    ! Cosmological constant
         logical :: log_shooting = .false.
     contains
         procedure :: Vofphi => THybridQuintessence_VofPhi
@@ -772,7 +772,7 @@ contains
         tot = grhoa2 + grhoc_t + grhode ! 8*pi*G*a^4*rho        
         adot = sqrt(tot/3.0d0) ! a*H_curly
         yprime(1) = phidot/adot ! dphi/da
-        yprime(2) = -2*phidot/a - a*grhoc_t/a**4/(phi*adot/a) ! dphi'/da
+        yprime(2) = -2*phidot/a - this%alpha*a*grhoc_t/a**4/(phi*adot/a) ! dphi'/da
     end subroutine THybridQuintessence_EvolveBackground
 
     subroutine THybridQuintessence_Init(this, State)
@@ -905,10 +905,6 @@ contains
             this%phi_a(nsteps_log + i) = y(1)
             this%phidot_a(nsteps_log + i) = y(2)
         end do
-
-        ! JVR NOTE: we need to deallocate phi_a, phidot_a, sampled_a
-        ! this might be causing memory leaks and subsequent segmentation faults in original CAMB!
-        ! deallocate(phi_a, phidot_a, sampled_a)
         
         ! Must set the fields
         this%astart = a_start
@@ -941,7 +937,7 @@ contains
         ayprime(w_ix) = vq
 
         rho_dm = this%grhoc_i * (phi/this%phi_i) * (this%a_i/a)**3
-        deltaQ = rho_dm*(clxq - phi*y(cdm_ix))/phi**2
+        deltaQ = this%alpha*rho_dm*(clxq - phi*y(cdm_ix))/phi**2
         ayprime(w_ix+1) = - 2*adotoa*vq - k*z*phidot - k**2*clxq + a**2*clxq*this%Vofphi(phi,2) + a*a*deltaQ ! JVR: original equation
     end subroutine THybridQuintessence_PerturbationEvolve
 

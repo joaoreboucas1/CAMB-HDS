@@ -10,7 +10,7 @@
         logical :: is_cosmological_constant = .true.
         logical :: is_hybrid_sector = .false.
         real(dl) :: grhoc_i
-        real(dl) :: phi_i, a_i
+        real(dl) :: phi_i, alpha, a_i
         integer :: num_perturb_equations = 0
     contains
     procedure :: Init

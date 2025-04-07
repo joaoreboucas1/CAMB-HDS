@@ -2186,7 +2186,7 @@
     real(dl) phidot, polterdot, polterddot, octg, octgdot
     real(dl) ddopacity, visibility, dvisibility, ddvisibility, exptau, lenswindow
     real(dl) ISW, quadrupole_source, doppler, monopole_source, tau0, ang_dist
-    real(dl) dgrho_de, dgq_de, cs2_de, deltaQ, Q_interaction, rho_dm, v_cdm
+    real(dl) dgrho_de, dgq_de, cs2_de, deltaQ, Q_interaction, rho_dm, v_cdm, alpha
 
     k=EV%k_buf
     k2=EV%k2_buf
@@ -2330,9 +2330,16 @@
     ! CDM equation of motion
     ! JVR MOD: Equation (42) from https://arxiv.org/pdf/2211.13653
     if (State%CP%DarkEnergy%is_hybrid_sector) then
+        select type(de => State%CP%DarkEnergy)
+        class is(THybridQuintessence)
+            alpha = de%alpha
+        class default
+            alpha = 0
+        end select
+        rho_dm = State%CP%DarkEnergy%grhoc_i * (phi_de/State%CP%DarkEnergy%phi_i) * (State%CP%DarkEnergy%a_i)**3 / a
         rho_dm = grhoc_t/a2
-        deltaQ = rho_dm * (ay(EV%w_ix) - phi_de*clxc)/phi_de**2
-        Q_interaction = -rho_dm/phi_de
+        deltaQ = State%CP%DarkEnergy%alpha * rho_dm * (ay(EV%w_ix) - phi_de*clxc)/phi_de**2
+        Q_interaction = -State%CP%DarkEnergy%alpha * rho_dm/phi_de
         clxcdot = -k*(z + v_cdm) + Q_interaction*phi_prime_de*clxc/rho_dm - Q_interaction*ay(EV%w_ix + 1)/rho_dm - phi_prime_de*deltaQ/rho_dm ! Equation (42) from https://arxiv.org/pdf/2211.13653
         ayprime(ix_vc) = -adotoa*v_cdm + Q_interaction*phi_prime_de*v_cdm/rho_dm - Q_interaction*k*ay(EV%w_ix)/rho_dm
     else 
