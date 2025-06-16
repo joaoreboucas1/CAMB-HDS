@@ -12,6 +12,7 @@ class DarkEnergyModel(F2003Class):
         ("__is_hybrid_sector", c_bool),
         ("__grhoc_i", c_double),
         ("phi_i", c_double),
+        ("phi_prime_i", c_double),
         ("alpha", c_double),
         ("__a_i", c_double),
         ("__num_perturb_equations", c_int)
@@ -235,8 +236,9 @@ class HybridQuintessence(Quintessence):
     ]
     _fortran_class_name_ = 'THybridQuintessence'
 
-    def set_params(self, phi_i, alpha, log_shooting=False):
+    def set_params(self, phi_i, alpha=1, phi_prime_i=0, log_shooting=False):
         self.phi_i = phi_i
+        self.phi_prime_i = phi_prime_i
         self.alpha = alpha
         self.log_shooting = log_shooting
 

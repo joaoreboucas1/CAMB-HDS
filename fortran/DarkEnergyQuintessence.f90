@@ -837,7 +837,7 @@ contains
 
         ! See if current V0 is giving correct omega_de now
         atol = 1d-8
-        initial_phidot = 0d0
+        initial_phidot = this%phi_prime_i
         this%V0 = V0_1
         call GetOmegaFromInitial(this, a_start, this%phi_i, initial_phidot, atol, omde1, omcdm1, phi_0_1)
         this%V0 = V0_2
@@ -884,7 +884,7 @@ contains
         end do
 
         y(1) = this%phi_i
-        y(2) = 0d0
+        y(2) = this%phi_prime_i
         
         do i = 1, nsteps_log
             loga = log(a_start) + i*dloga
