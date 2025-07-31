@@ -62,8 +62,11 @@ module Quintessence
         procedure :: calc_zc_fde
     end type TEarlyQuintessence
 
+    integer, parameter :: Potential_Constant = 1, Potential_Exp = 2
     type, extends(TQuintessence) :: THybridQuintessence
+        integer ::  potential_type = Potential_Constant ! Cosmological constant
         real(dl) :: V0    ! Cosmological constant
+        real(dl) :: beta  ! Coefficient of phi in exponential potential, exp(beta * phi)
         logical :: log_shooting = .false.
     contains
         procedure :: Vofphi => THybridQuintessence_VofPhi
@@ -735,11 +738,24 @@ contains
         class(THybridQuintessence) :: this
         real(dl) :: phi
         integer :: deriv
-        if (deriv == 0) then
-            Vofphi = this%V0
-        else
-            Vofphi = 0d0
-        end if
+        select case (this%potential_type)
+        case (Potential_Constant)
+            if (deriv == 0) then
+                Vofphi = this%V0
+            else
+                Vofphi = 0d0
+            end if
+        case (Potential_Exp)
+            if (deriv == 0) then
+                Vofphi = this%V0*exp(this%beta*phi)
+            else if (deriv == 1) then
+                Vofphi = this%V0*this%beta*exp(this%beta*phi)
+            else if (deriv == 2) then
+                Vofphi = this%V0*this%beta*this%beta*exp(this%beta*phi)
+            end if
+        case default
+            error stop "Invalid potential type"
+        end select
     end function THybridQuintessence_VofPhi
 
     subroutine THybridQuintessence_EvolveBackground(this,num,a,y,yprime)

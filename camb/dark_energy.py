@@ -13,7 +13,7 @@ class DarkEnergyModel(F2003Class):
         ("__grhoc_i", c_double),
         ("phi_i", c_double),
         ("phi_prime_i", c_double),
-        ("alpha", c_double),
+        ("alpha", c_double, "Coupling strength"),
         ("__a_i", c_double),
         ("__num_perturb_equations", c_int)
     ]
@@ -231,15 +231,19 @@ class HybridQuintessence(Quintessence):
     """
 
     _fields_ = [
-        ("V0", c_double, "power index for potential"),               
+        ("potential_type", c_int, "Which potential to use"),               
+        ("V0", c_double, "Overall constant"),               
+        ("beta", c_double, "Coefficient in exponential potential"),               
         ("log_shooting", c_bool, "whether to log the shooting"),        
     ]
     _fortran_class_name_ = 'THybridQuintessence'
 
-    def set_params(self, phi_i, alpha=1, phi_prime_i=0, log_shooting=False):
+    def set_params(self, phi_i, alpha=1, phi_prime_i=0, beta=0, potential_type=1, log_shooting=False):
+        self.potential_type = potential_type
         self.phi_i = phi_i
         self.phi_prime_i = phi_prime_i
         self.alpha = alpha
+        self.beta = beta
         self.log_shooting = log_shooting
 
 # short names for models that support w/wa
