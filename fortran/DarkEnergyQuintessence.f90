@@ -799,7 +799,7 @@ contains
         real(dl), parameter :: omega_de_tol = 1e-6
         real(dl), parameter :: omega_cdm_tol = 1e-7
         real(dl), parameter :: splZero = 0._dl
-        real(dl), parameter :: a_start = 1e-7, a_switch = 3e-4
+        real(dl), parameter :: a_start = 1e-5, a_switch = 3e-4
         real(dl), parameter :: dloga = (log(a_switch) - log(a_start))/nsteps_log, da = (1._dl - a_switch)/nsteps_linear
         real(dl)            :: y(NumEqs), y_prime(NumEqs)
         real(dl)            :: omega_de_target, omega_cdm_target, omde, omcdm, omde1, omde2, omcdm1, omcdm2, phi_0, phi_0_1, phi_0_2
@@ -832,11 +832,11 @@ contains
         end if
 
         allocate(&
-            this%phi_a(nsteps),      &
-            this%phidot_a(nsteps),   &
-            this%ddphi_a(nsteps),    &
-            this%ddphidot_a(nsteps), &
-            this%sampled_a(nsteps)   &
+            this%phi_a(nsteps+1),      &
+            this%phidot_a(nsteps+1),   &
+            this%ddphi_a(nsteps+1),    &
+            this%ddphidot_a(nsteps+1), &
+            this%sampled_a(nsteps+1)   &
         )
 
         this%a_i = a_start
@@ -901,15 +901,18 @@ contains
 
         y(1) = this%phi_i
         y(2) = this%phi_prime_i
+        this%sampled_a(1) = a_start
+        this%phi_a(1) = y(1)
+        this%phidot_a(1) = y(2)
         
         do i = 1, nsteps_log
             loga = log(a_start) + i*dloga
             call this%EvolveBackgroundLog(NumEqs, loga, y, y_prime)
             y(1) = y(1) + y_prime(1)*dloga
             y(2) = y(2) + y_prime(2)*dloga
-            this%sampled_a(i) = exp(loga)
-            this%phi_a(i) = y(1)
-            this%phidot_a(i) = y(2)
+            this%sampled_a(i+1) = exp(loga)
+            this%phi_a(i+1) = y(1)
+            this%phidot_a(i+1) = y(2)
         end do
 
         do i = 1, nsteps_linear
@@ -917,9 +920,9 @@ contains
             call this%EvolveBackground(NumEqs, a, y, y_prime)
             y(1) = y(1) + y_prime(1)*da
             y(2) = y(2) + y_prime(2)*da
-            this%sampled_a(nsteps_log + i) = a
-            this%phi_a(nsteps_log + i) = y(1)
-            this%phidot_a(nsteps_log + i) = y(2)
+            this%sampled_a(nsteps_log + 1 + i) = a
+            this%phi_a(nsteps_log + 1 + i) = y(1)
+            this%phidot_a(nsteps_log + 1 + i) = y(2)
         end do
         
         ! Must set the fields
