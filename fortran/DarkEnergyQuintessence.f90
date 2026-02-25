@@ -804,11 +804,11 @@ contains
         class(THybridQuintessence), intent(inout) :: this
         class(TCAMBdata), intent(in), target :: State
         integer,  parameter :: NumEqs = 2, max_iters = 20
-        integer,  parameter :: nsteps_linear = 10000, nsteps_log = 2000, nsteps = nsteps_log + nsteps_linear
+        integer,  parameter :: nsteps_linear = 5000, nsteps_log = 2000, nsteps = nsteps_log + nsteps_linear
         real(dl), parameter :: omega_de_tol = 1e-6
         real(dl), parameter :: omega_cdm_tol = 1e-7
         real(dl), parameter :: splZero = 0._dl
-        real(dl), parameter :: a_start = 1e-5, a_switch = 3e-4
+        real(dl), parameter :: a_start = 1e-5, a_switch = 3e-2
         real(dl), parameter :: dloga = (log(a_switch) - log(a_start))/nsteps_log, da = (1._dl - a_switch)/nsteps_linear
         real(dl)            :: y(NumEqs), y_prime(NumEqs)
         real(dl)            :: omega_de_target, omega_cdm_target, omde, omcdm, omde1, omde2, omcdm1, omcdm2, phi_0, phi_0_1, phi_0_2
