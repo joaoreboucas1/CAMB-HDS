@@ -62,7 +62,7 @@ module Quintessence
         procedure :: calc_zc_fde
     end type TEarlyQuintessence
 
-    integer, parameter :: Potential_Constant = 1, Potential_Exp = 2
+    integer, parameter :: Potential_Constant = 1, Potential_Exp = 2, Potential_Inverse = 3
     type, extends(TQuintessence) :: THybridQuintessence
         integer ::  potential_type = Potential_Constant ! Cosmological constant
         real(dl) :: V0    ! Cosmological constant
@@ -753,6 +753,15 @@ contains
             else if (deriv == 2) then
                 Vofphi = this%V0*this%beta*this%beta*exp(this%beta*phi)
             end if
+        case (Potential_Inverse)
+            ! V = V0*phi**(-B)
+            if (deriv == 0) then
+                Vofphi = this%V0*phi**(-this%beta)
+            else if (deriv == 1) then
+                Vofphi = this%V0*(-this%beta)*phi**(-this%beta-1.0)
+            else if (deriv == 2) then
+                Vofphi = this%V0*(-this%beta)*(-this%beta-1.0)*phi**(-this%beta-2.0)
+            end if
         case default
             error stop "Invalid potential type"
         end select
@@ -788,7 +797,7 @@ contains
         tot = grhoa2 + grhoc_t + grhode ! 8*pi*G*a^4*rho        
         adot = sqrt(tot/3.0d0) ! a*H_curly
         yprime(1) = phidot/adot ! dphi/da
-        yprime(2) = -2*phidot/a - this%alpha*a*grhoc_t/a**4/(phi*adot/a) ! dphi'/da
+        yprime(2) = -2*phidot/a - this%alpha*a*grhoc_t/a**4/(phi*adot/a) - a2**2*this%Vofphi(phi,1)/adot ! dphi'/da
     end subroutine THybridQuintessence_EvolveBackground
 
     subroutine THybridQuintessence_Init(this, State)
@@ -843,7 +852,7 @@ contains
         
         ! Binary search for V0
         V0_1 = this%State%grhov * 0.5_dl
-        V0_2 = this%State%grhov * 1.3_dl
+        V0_2 = this%State%grhov * 1.5_dl
         if (this%log_shooting) then
             print*, "Shooting for V0 with tentative values: ", V0_1, V0_2, "using phi_i = ", this%phi_i
             print*, "Target Omega_de:", omega_de_target, "Target omega_cdm:", omega_cdm_target
@@ -866,10 +875,10 @@ contains
 
         this%grhoc_i = this%grhoc_i * (this%phi_i/phi_0_1)
         
+        if ((omde1 > omega_de_target .or. omde2 < omega_de_target) .and. this%log_shooting) then
+            write (*,*) 'WARNING: initial guesses for V0 did not bracket the required value'
+        end if
         do i = 1, max_iters
-            if ((omde1 > omega_de_target .or. omde2 < omega_de_target) .and. this%log_shooting) then
-                write (*,*) 'WARNING: initial guesses for V0 did not bracket the required value'
-            end if
             a_line = (omde2 - omde1)/(V0_2 - V0_1)
 		    b_line = omde2 - a_line*V0_2
             new_V0 = (omega_de_target - b_line)/a_line
