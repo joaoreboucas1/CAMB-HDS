@@ -797,7 +797,7 @@ contains
         tot = grhoa2 + grhoc_t + grhode ! 8*pi*G*a^4*rho        
         adot = sqrt(tot/3.0d0) ! a*H_curly
         yprime(1) = phidot/adot ! dphi/da
-        yprime(2) = -2*phidot/a - this%alpha*a*grhoc_t/a**4/(phi*adot/a) - a2**2*this%Vofphi(phi,1)/adot ! dphi'/da
+        yprime(2) = -2*phidot/a - this%alpha*a*grhoc_t/a**4/(phi*adot/a) - a2*this%Vofphi(phi,1)/adot ! dphi'/da
     end subroutine THybridQuintessence_EvolveBackground
 
     subroutine THybridQuintessence_Init(this, State)
