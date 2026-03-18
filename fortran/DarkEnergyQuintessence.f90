@@ -724,7 +724,7 @@ contains
 
         omega_de_0 = (0.5d0*y(2)**2 + this%Vofphi(y(1), 0))/this%State%grhocrit
         phi_0 = y(1)
-        omega_cdm_0 = this%grhoc_i * (phi_0/this%phi_i) * (this%a_i)**3 / this%State%grhocrit
+        omega_cdm_0 = this%grhoc_i * (phi_0/this%phi_i)**this%alpha * (this%a_i)**3 / this%State%grhocrit
     end subroutine GetOmegaFromInitial
 
     ! -----------------------------------------------------------------------
@@ -783,7 +783,7 @@ contains
 
         grhode = a2*(0.5d0*phidot**2 + a2*this%Vofphi(phi, 0))
         
-        grhoc_t = this%grhoc_i * phi/this%phi_i * (this%a_i)**3 * a
+        grhoc_t = this%grhoc_i * (phi/this%phi_i)**this%alpha * (this%a_i)**3 * a
         grhoa2 = this%state%grhok * a**2 + this%state%grhob * a + this%state%grhog + this%state%grhornomass
         
         if (this%state%CP%Num_Nu_massive /= 0) then
@@ -873,7 +873,7 @@ contains
             print*, "V0 = ", V0_2, "=> omega_de = ", omde2
         end if
 
-        this%grhoc_i = this%grhoc_i * (this%phi_i/phi_0_1)
+        this%grhoc_i = this%grhoc_i * (this%phi_i/phi_0_1)**this%alpha
         
         if ((omde1 > omega_de_target .or. omde2 < omega_de_target) .and. this%log_shooting) then
             write (*,*) 'WARNING: initial guesses for V0 did not bracket the required value'
@@ -893,11 +893,11 @@ contains
                 if (this%log_shooting) then
                     print*, "Finished shooting successfully after ", i, "iterations"
                 end if
-                this%grhoc_i = this%State%grhoc * this%a_i**(-3) * (this%phi_i/phi_0)
+                this%grhoc_i = this%State%grhoc * this%a_i**(-3) * (this%phi_i/phi_0)**this%alpha
                 exit
             end if
 
-            this%grhoc_i = this%State%grhoc * this%a_i**(-3) * (this%phi_i/phi_0)
+            this%grhoc_i = this%State%grhoc * this%a_i**(-3) * (this%phi_i/phi_0)**this%alpha
 
             if (omde < omega_de_target) then
                 omde1 = omde
@@ -964,7 +964,7 @@ contains
         vq = y(w_ix+1)
         ayprime(w_ix) = vq
 
-        rho_dm = this%grhoc_i * (phi/this%phi_i) * (this%a_i/a)**3
+        rho_dm = this%grhoc_i * (phi/this%phi_i)**this%alpha * (this%a_i/a)**3
         deltaQ = this%alpha*rho_dm*(clxq - phi*y(cdm_ix))/phi**2
         ayprime(w_ix+1) = - 2*adotoa*vq - k*z*phidot - k**2*clxq + a**2*clxq*this%Vofphi(phi,2) + a*a*deltaQ ! JVR: original equation
     end subroutine THybridQuintessence_PerturbationEvolve
