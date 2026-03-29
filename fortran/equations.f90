@@ -2866,7 +2866,7 @@
     real(dl) sigma, qg,pig, qr, vb, rhoq, vbdot, photbar, pb43
     real(dl) k,k2,a,a2, adotdota
     real(dl) pir,adotoa
-    real(dl) w_dark_energy_t
+    real(dl) w_dark_energy_t, phi_de, phi_prime_de
 
     k2=EV%k2_buf
     k=EV%k_buf
@@ -2901,7 +2901,14 @@
     ! Compute expansion rate from: grho=8*pi*rho*a**2
     ! Also calculate gpres: 8*pi*p*a**2
     grhob_t=State%grhob/a
-    grhoc_t=State%grhoc/a
+    ! JVR MOD: changing CDM energy density
+    if (State%CP%DarkEnergy%is_hybrid_sector) then
+        call State%CP%DarkEnergy%ValsAta(a, phi_de, phi_prime_de)
+        grhoc_t = State%CP%DarkEnergy%grhoc_i * (phi_de/State%CP%DarkEnergy%phi_i)**State%CP%DarkEnergy%alpha * (State%CP%DarkEnergy%a_i)**3 / a
+    else
+        grhoc_t = State%grhoc/a
+    end if
+    ! JVR MOD end
     grhor_t=State%grhornomass/a2
     grhog_t=State%grhog/a2
     call CP%DarkEnergy%BackgroundDensityAndPressure(State%grhov, a, grhov_t, w_dark_energy_t)

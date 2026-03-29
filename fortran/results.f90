@@ -954,7 +954,7 @@
         ! densities(3,i) = this%grhoc * a
         if (this%CP%DarkEnergy%is_hybrid_sector) then
             call this%CP%DarkEnergy%ValsAta(a, phi, phi_prime)
-            grhoc = this%CP%DarkEnergy%grhoc_i * phi/this%CP%DarkEnergy%phi_i * (this%CP%DarkEnergy%a_i)**3 * a
+            grhoc = this%CP%DarkEnergy%grhoc_i * (phi/this%CP%DarkEnergy%phi_i)**this%CP%DarkEnergy%alpha * (this%CP%DarkEnergy%a_i)**3 * a
         else
             grhoc = this%grhoc * a
         end if
@@ -1235,7 +1235,7 @@
         else
             phi = this%CP%DarkEnergy%phi_i
         end if        
-        grhoc_t = this%CP%DarkEnergy%grhoc_i * phi/this%CP%DarkEnergy%phi_i * (this%CP%DarkEnergy%a_i)**3 * a
+        grhoc_t = this%CP%DarkEnergy%grhoc_i * (phi/this%CP%DarkEnergy%phi_i)**this%CP%DarkEnergy%alpha * (this%CP%DarkEnergy%a_i)**3 * a
     else
         grhoc_t = this%grhoc * a
     end if
