@@ -695,12 +695,12 @@ contains
         integer, parameter ::  NumEqs = 2
         real(dl) :: c(24), w(NumEqs, 9), y(NumEqs), a_switch, y_prime(2)
         integer :: ind, i
-        integer, parameter :: nsteps_log = 2000, nsteps_linear = 2000
+        integer, parameter :: nsteps_log = 200, nsteps_linear = 200
         
         real(dl) :: da, dloga, loga, a
         
         ind = 1
-        a_switch = 5e-3
+        a_switch = 3e-2
         dloga = (log(a_switch) - log(astart))/nsteps_log
         y(1) = phi
         y(2) = phidot
@@ -719,6 +719,7 @@ contains
             call this%EvolveBackground(NumEqs, a, y, y_prime)
             y(1) = y(1) + y_prime(1)*da
             y(2) = y(2) + y_prime(2)*da
+            
             ! print*, "a =", a, "phi =", y(1), "phi_prime =", y(2), "dphi/da =", y_prime(1), "dphi_prime/da =", y_prime(2)
         end do
 
@@ -782,6 +783,11 @@ contains
         phidot = y(2)
 
         grhode = a2*(0.5d0*phidot**2 + a2*this%Vofphi(phi, 0))
+
+        if (phi < 0.0) then
+            call GlobalError(FormatString("Your HDS cosmology with phi_i = %f went to negative values of \phi at a = %f!", this%phi_i, a), error_unsupported_params)
+            ! error stop FormatString("Your HDS cosmology went to negative values of \phi at a = %f!", a)
+        end if
         
         grhoc_t = this%grhoc_i * (phi/this%phi_i)**this%alpha * (this%a_i)**3 * a
         grhoa2 = this%state%grhok * a**2 + this%state%grhob * a + this%state%grhog + this%state%grhornomass
@@ -804,7 +810,7 @@ contains
         class(THybridQuintessence), intent(inout) :: this
         class(TCAMBdata), intent(in), target :: State
         integer,  parameter :: NumEqs = 2, max_iters = 20
-        integer,  parameter :: nsteps_linear = 5000, nsteps_log = 2000, nsteps = nsteps_log + nsteps_linear
+        integer,  parameter :: nsteps_linear = 500, nsteps_log = 500, nsteps = nsteps_log + nsteps_linear
         real(dl), parameter :: omega_de_tol = 1e-6
         real(dl), parameter :: omega_cdm_tol = 1e-7
         real(dl), parameter :: splZero = 0._dl
@@ -865,8 +871,10 @@ contains
         initial_phidot = this%phi_prime_i
         this%V0 = V0_1
         call GetOmegaFromInitial(this, a_start, this%phi_i, initial_phidot, atol, omde1, omcdm1, phi_0_1)
+        if (global_error_flag /= 0) return
         this%V0 = V0_2
         call GetOmegaFromInitial(this, a_start, this%phi_i, initial_phidot, atol, omde2, omcdm2, phi_0_2)
+        if (global_error_flag /= 0) return
         
         if (this%log_shooting) then
             print*, "V0 = ", V0_1, "=> omega_de = ", omde1
@@ -884,6 +892,7 @@ contains
             new_V0 = (omega_de_target - b_line)/a_line
             this%V0 = new_V0
             call GetOmegaFromInitial(this, a_start, this%phi_i, initial_phidot, atol, omde, omcdm, phi_0)
+            if (global_error_flag /= 0) return
             error_de = (omde - omega_de_target)/omega_de_target
             error_cdm = (omcdm - omega_cdm_target)/omega_cdm_target
             if (this%log_shooting) then
@@ -907,6 +916,13 @@ contains
                 V0_2 = new_V0
             end if
         end do
+
+        if (i == max_iters .and. .not. (abs(error_de) < omega_de_tol .and. abs(error_cdm) < omega_cdm_tol)) then
+            call GlobalError( &
+            FormatString("Could not do binary search in %d iterations. Error DE = %f (tol = %f), Error DM = %f (tol = %f)", &
+            max_iters, error_de, omega_de_tol, error_cdm, omega_cdm_tol), error_unsupported_params)
+            return
+        end if
 
         y(1) = this%phi_i
         y(2) = this%phi_prime_i
@@ -1015,6 +1031,11 @@ contains
         class(TIniFile), intent(in) :: Ini
 
         call this%TDarkEnergyModel%ReadParams(Ini)
+        this%phi_i = Ini%Read_Double('phi_i', 20.d0)
+        this%phi_prime_i = Ini%Read_Double('phi_prime_i', 0.d0)
+        this%alpha = Ini%Read_Double('alpha', 1.d0)
+        this%beta = Ini%Read_Double('beta', 4.d0)
+        this%potential_type = Ini%Read_Int('potential_type', Potential_Constant)
 
     end subroutine THybridQuintessence_ReadParams
 

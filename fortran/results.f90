@@ -550,16 +550,19 @@
             write (*,*) 'source max_eta_k: ', this%CP%Max_eta_k,'kmax = ', this%CP%Max_eta_k/this%tau0
     end if
 
+    ! JVR MOD BEGIN: this needs to be checked before the division error below
+    if (global_error_flag/=0) then
+        if (present(error)) error = global_error_flag
+        return
+    end if
+    ! JVR MOD END
+    
     if ((this%CP%NonLinear==NonLinear_Lens .or. this%CP%NonLinear==NonLinear_both) .and. &
         this%CP%Max_eta_k/this%tau0 > this%CP%Transfer%kmax) then
         this%CP%Transfer%kmax =this%CP%Max_eta_k/this%tau0
         if (FeedbackLevel > 0) write (*,*) 'kmax changed to ', this%CP%Transfer%kmax
     end if
 
-    if (global_error_flag/=0) then
-        if (present(error)) error = global_error_flag
-        return
-    end if
 
     if (present(error)) then
         error = 0

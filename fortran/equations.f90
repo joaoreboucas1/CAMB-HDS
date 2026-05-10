@@ -2336,7 +2336,6 @@
         class default
             alpha = 0
         end select
-        ! rho_dm = State%CP%DarkEnergy%grhoc_i * (phi_de/State%CP%DarkEnergy%phi_i) * (State%CP%DarkEnergy%a_i)**3 / a
         rho_dm = grhoc_t/a2
         deltaQ = State%CP%DarkEnergy%alpha * rho_dm * (ay(EV%w_ix) - phi_de*clxc)/phi_de**2
         Q_interaction = -State%CP%DarkEnergy%alpha * rho_dm/phi_de
