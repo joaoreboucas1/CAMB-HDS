@@ -786,7 +786,7 @@ contains
 
         if (phi < 0.0) then
             call GlobalError(FormatString("Your HDS cosmology with phi_i = %f went to negative values of \phi at a = %f!", this%phi_i, a), error_unsupported_params)
-            ! error stop FormatString("Your HDS cosmology went to negative values of \phi at a = %f!", a)
+            return
         end if
         
         grhoc_t = this%grhoc_i * (phi/this%phi_i)**this%alpha * (this%a_i)**3 * a
@@ -806,7 +806,25 @@ contains
         yprime(2) = -2*phidot/a - this%alpha*a*grhoc_t/a**4/(phi*adot/a) - a2*this%Vofphi(phi,1)/adot ! dphi'/da
     end subroutine THybridQuintessence_EvolveBackground
 
+    real(dl) function match_V0_grhoc_i(this, x) result(cost)
+        class(THybridQuintessence) :: this
+        real(dl), intent(in) :: x(:)
+        real(dl) omcdm, omde, phi_0
+        real(dl), parameter :: a_start = 1e-5
+
+        this%V0      = exp(x(1))
+        this%grhoc_i = exp(x(2))
+        call GetOmegaFromInitial(this, a_start, this%phi_i, this%phi_prime_i, 1e-7_dl, omde, omcdm, phi_0)
+
+        cost = (omde - this%State%grhov/this%State%grhocrit)**2 + (omcdm-this%State%grhoc/this%State%grhocrit)**2
+        
+        if (this%DebugLevel>1) then
+            write(*,*) 'Search: V0 = ', this%V0, 'grhoc_i = ', this%grhoc_i, 'omega_de = ', omde, 'omega_cdm = ', omcdm
+        end if
+    end function match_V0_grhoc_i
+
     subroutine THybridQuintessence_Init(this, State)
+        use Powell
         class(THybridQuintessence), intent(inout) :: this
         class(TCAMBdata), intent(in), target :: State
         integer,  parameter :: NumEqs = 2, max_iters = 20
@@ -817,23 +835,18 @@ contains
         real(dl), parameter :: a_start = 1e-5, a_switch = 3e-2
         real(dl), parameter :: dloga = (log(a_switch) - log(a_start))/nsteps_log, da = (1._dl - a_switch)/nsteps_linear
         real(dl)            :: y(NumEqs), y_prime(NumEqs)
-        real(dl)            :: omega_de_target, omega_cdm_target, omde, omcdm, omde1, omde2, omcdm1, omcdm2, phi_0, phi_0_1, phi_0_2
-        real(dl)            :: V0_1, V0_2, new_V0, a, loga, atol, initial_phi, initial_phidot, a_line, b_line, error_de, error_cdm
-        real(dl)            :: phi, phidot
+        real(dl)            :: omde, omcdm, phi_0, naive_grhoc_i
+        real(dl)            :: a, loga, initial_phi, initial_phidot
+        real(dl)            :: phi, phidot, log_params(2)
         integer             :: i
         Type(TTimer)        :: Timer
-        real(dl)            :: grho_no_de, grho_de, fde
+        Type(TNEWUOA)       :: Minimize
 
         !Make interpolation table, etc,
         !At this point massive neutrinos have been initialized
         !so grho_no_de can be used to get density and pressure of other components at scale factor a
         call this%TQuintessence%Init(State) 
         this%is_hybrid_sector = .true.
-        select type(State)
-        class is (CAMBdata)
-            omega_de_target  = State%grhov/State%grhocrit
-            omega_cdm_target = State%grhoc/State%grhocrit
-        end select
 
         if (allocated(this%phi_a)) then
             print*, "WARNING: the interpolation table is already allocated. This shouldn't be happening but we are deallocating anyway"
@@ -855,74 +868,29 @@ contains
         )
 
         this%a_i = a_start
-        
-        ! Binary search for V0
-        V0_1 = this%State%grhov * 0.5_dl
-        V0_2 = this%State%grhov * 1.5_dl
-        if (this%log_shooting) then
-            print*, "Shooting for V0 with tentative values: ", V0_1, V0_2, "using phi_i = ", this%phi_i
-            print*, "Target Omega_de:", omega_de_target, "Target omega_cdm:", omega_cdm_target
-        end if
-        
-        this%grhoc_i = this%State%grhoc * this%a_i**(-3)
 
-        ! See if current V0 is giving correct omega_de now
-        atol = 1d-8
         initial_phidot = this%phi_prime_i
-        this%V0 = V0_1
-        call GetOmegaFromInitial(this, a_start, this%phi_i, initial_phidot, atol, omde1, omcdm1, phi_0_1)
-        if (global_error_flag /= 0) return
-        this%V0 = V0_2
-        call GetOmegaFromInitial(this, a_start, this%phi_i, initial_phidot, atol, omde2, omcdm2, phi_0_2)
-        if (global_error_flag /= 0) return
-        
-        if (this%log_shooting) then
-            print*, "V0 = ", V0_1, "=> omega_de = ", omde1
-            print*, "V0 = ", V0_2, "=> omega_de = ", omde2
-        end if
+        naive_grhoc_i = this%State%grhoc * this%a_i**(-3)
+        log_params(1) = log(this%State%grhov)
+        log_params(2) = log(naive_grhoc_i)
+        if (Minimize%NEWUOA(this, match_V0_grhoc_i, 2, 5, log_params,&
+            8._dl,1e-4_dl,this%DebugLevel,500)) then
 
-        this%grhoc_i = this%grhoc_i * (this%phi_i/phi_0_1)**this%alpha
-        
-        if ((omde1 > omega_de_target .or. omde2 < omega_de_target) .and. this%log_shooting) then
-            write (*,*) 'WARNING: initial guesses for V0 did not bracket the required value'
-        end if
-        do i = 1, max_iters
-            a_line = (omde2 - omde1)/(V0_2 - V0_1)
-		    b_line = omde2 - a_line*V0_2
-            new_V0 = (omega_de_target - b_line)/a_line
-            this%V0 = new_V0
-            call GetOmegaFromInitial(this, a_start, this%phi_i, initial_phidot, atol, omde, omcdm, phi_0)
-            if (global_error_flag /= 0) return
-            error_de = (omde - omega_de_target)/omega_de_target
-            error_cdm = (omcdm - omega_cdm_target)/omega_cdm_target
-            if (this%log_shooting) then
-                print*, "V0 = ", new_V0, "=> omega_de = ", omde, "(error = ", error_de, "), omega_cdm = ", omcdm, "(error = ", error_cdm, ")"
+            if (Minimize%Last_bestfit > 1e-3) then
+                global_error_flag = error_darkenergy
+                global_error_message = 'THybridQuintessence ERROR converging solution for V0, grhoc_i'
+                return
             end if
-            if (abs(error_de) < omega_de_tol .and. abs(error_cdm) < omega_cdm_tol) then 
-                if (this%log_shooting) then
-                    print*, "Finished shooting successfully after ", i, "iterations"
-                end if
-                this%grhoc_i = this%State%grhoc * this%a_i**(-3) * (this%phi_i/phi_0)**this%alpha
-                exit
-            end if
-
-            this%grhoc_i = this%State%grhoc * this%a_i**(-3) * (this%phi_i/phi_0)**this%alpha
-
-            if (omde < omega_de_target) then
-                omde1 = omde
-                V0_1 = new_V0
-            else
-                omde2 = omde
-                V0_2 = new_V0
-            end if
-        end do
-
-        if (i == max_iters .and. .not. (abs(error_de) < omega_de_tol .and. abs(error_cdm) < omega_cdm_tol)) then
-            call GlobalError( &
-            FormatString("Could not do binary search in %d iterations. Error DE = %f (tol = %f), Error DM = %f (tol = %f)", &
-            max_iters, error_de, omega_de_tol, error_cdm, omega_cdm_tol), error_unsupported_params)
+            this%V0      = exp(log_params(1))
+            this%grhoc_i = exp(log_params(2))
+            call GetOmegaFromInitial(this, a_start, this%phi_i, this%phi_prime_i, 1e-7_dl, omde, omcdm, phi_0)
+            ! print *, "Omega_de = ", omde, "(error = ", omde - this%State%grhov/this%State%grhocrit, ')'
+            ! print *, "Omega_cdm = ", omcdm, "(error = ", omcdm - this%State%grhoc/this%State%grhocrit, ')'
+        else
+            global_error_flag = error_darkenergy
+            global_error_message= 'THybridQuintessence ERROR finding solution for V0, grhoc_i'
             return
-        end if
+        end if        
 
         y(1) = this%phi_i
         y(2) = this%phi_prime_i
