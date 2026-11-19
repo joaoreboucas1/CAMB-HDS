@@ -1617,9 +1617,13 @@
     i=int(d)
     d=d-i
     if (i < 1) then
-        !Linear interpolation if out of bounds (should not occur).
-        write(*,*) 'tau, taumin = ', tau, this%tauminn
-        call MpiStop('thermo out of bounds')
+        !Out of bounds (should not occur): raise an error instead of stopping the process,
+        !and return the first table values so the caller can finish its step and check the error flag.
+        call GlobalError('Thermo_values: thermo out of bounds (tau < tauminn)', error_unsupported_params)
+        cs2b=this%cs2(1)
+        opacity=this%dotmu(1)
+        a=this%ScaleFactor(1)*tau
+        if (present(dopacity)) dopacity=this%ddotmu(1)/(tau*this%dlntau)
     else if (i >= this%nthermo) then
         cs2b=this%cs2(this%nthermo)
         opacity=this%dotmu(this%nthermo)
@@ -1656,7 +1660,11 @@
     i=int(d)
     d=d-i
     if (i < 1) then
-        call MpiStop('thermo out of bounds')
+        !Out of bounds (should not occur): raise an error instead of stopping the process.
+        call GlobalError('Thermo_expansion_values: thermo out of bounds (tau < tauminn)', error_unsupported_params)
+        opacity=this%dotmu(1)
+        a=this%ScaleFactor(1)*tau
+        adot=this%adot(1)
     else if (i >= this%nthermo) then
         opacity=this%dotmu(this%nthermo)
         a=1

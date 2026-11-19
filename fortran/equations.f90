@@ -307,6 +307,13 @@
         tau_switch_saha, tau_switch_evolve_TM)
 
     if (next_switch < tauend) then
+        if (next_switch >= noSwitch) then
+            ! tauend is beyond tau0+1: the conformal-time integrations disagree (e.g. stiff scalar-field
+            ! backgrounds). No real switch is left, so recursing would never terminate.
+            call GlobalError('GaugeInterface_EvolveScal: evolution end time beyond tau0 (inconsistent conformal times)', &
+                error_unsupported_params)
+            return
+        end if
         if (next_switch > tau+smallTime) then
             call GaugeInterface_ScalEv(EV, y, tau,next_switch,tol1,ind,c,w)
             if (global_error_flag/=0) return
